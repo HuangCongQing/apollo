@@ -25,8 +25,10 @@ namespace apollo {
 namespace perception {
 namespace lidar {
 
+// 初始化
 bool LidarObstacleDetection::Init(
     const LidarObstacleDetectionInitOptions& options) {
+  AINFO << "激光雷达目标检测初始化==============================";
   auto& sensor_name = options.sensor_name;
   auto config_manager = lib::ConfigManager::Instance();
   const lib::ModelConfig* model_config = nullptr;
@@ -60,18 +62,20 @@ bool LidarObstacleDetection::Init(
   return true;
 }
 
+// 检测处理1
 LidarProcessResult LidarObstacleDetection::Process(
     const LidarObstacleDetectionOptions& options, LidarFrame* frame) {
   PointCloudPreprocessorOptions preprocessor_options;
   preprocessor_options.sensor2novatel_extrinsics =
       options.sensor2novatel_extrinsics;
   if (cloud_preprocessor_.Preprocess(preprocessor_options, frame)) {
-    return ProcessCommon(options, frame);
+    return ProcessCommon(options, frame); // 下面调用
   }
   return LidarProcessResult(LidarErrorCode::PointCloudPreprocessorError,
                             "Failed to preprocess point cloud.");
 }
 
+// 检测处理2
 LidarProcessResult LidarObstacleDetection::Process(
     const LidarObstacleDetectionOptions& options,
     const std::shared_ptr<apollo::drivers::PointCloud const>& message,

@@ -1,6 +1,7 @@
 module_config {
   module_library : "/apollo/bazel-bin/modules/perception/onboard/component/libperception_component_lidar.so"
 
+ # 检测模块 (lidar128) 配置参数是 Velodyne 128 线激光雷达的配置文件，确实可以看到 Apollo 是以 Lidar 为主
  components {
     class_name : "DetectionComponent"
     config {
@@ -8,11 +9,12 @@ module_config {
       config_file_path: "/apollo/modules/perception/production/conf/perception/lidar/velodyne128_detection_conf.pb.txt"
       flag_file_path: "/apollo/modules/perception/production/conf/perception/perception_common.flag"
       readers {
-          channel: "/apollo/sensor/lidar128/compensator/PointCloud2"
+          # channel: "/apollo/sensor/lidar128/compensator/PointCloud2"
+          channel: "/apollo/sensor/velodyne64/compensator/PointCloud2"
         }
     }
   }
-
+ # lidar16线
  components {
     class_name : "DetectionComponent"
     config {
@@ -24,6 +26,7 @@ module_config {
     }
  }
 
+  # 识别模块 
   components {
     class_name : "RecognitionComponent"
     config {
@@ -35,6 +38,7 @@ module_config {
     }
   }
 
+  # 毫米波模块 
   components {
     class_name: "RadarDetectionComponent"
     config {
@@ -57,6 +61,7 @@ module_config {
     }
   }
 
+  # 融合模块 
   components {
     class_name: "FusionComponent"
     config {

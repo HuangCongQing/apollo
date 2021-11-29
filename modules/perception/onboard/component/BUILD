@@ -78,6 +78,7 @@ cc_library(
     ],
 )
 
+# BUILD 文件定义了 perception 中所有的 component 如 camera,radar,lidar 等的信息，本文只关注 Detection。
 cc_library(
     name = "detection_component",
     srcs = ["detection_component.cc"],

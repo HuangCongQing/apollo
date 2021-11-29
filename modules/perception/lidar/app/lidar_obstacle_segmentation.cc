@@ -28,6 +28,7 @@ namespace lidar {
 
 bool LidarObstacleSegmentation::Init(
     const LidarObstacleSegmentationInitOptions& options) {
+  AINFO << "激光雷达分割初始化==============================";
   auto& sensor_name = options.sensor_name;
   auto config_manager = lib::ConfigManager::Instance();
   const lib::ModelConfig* model_config = nullptr;

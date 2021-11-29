@@ -178,6 +178,7 @@ bool GetProjectMatrix(
 
 FusionCameraDetectionComponent::~FusionCameraDetectionComponent() {}
 
+// 01 初始化
 bool FusionCameraDetectionComponent::Init() {
   if (InitConfig() != cyber::SUCC) {
     AERROR << "InitConfig() failed.";
@@ -656,6 +657,7 @@ void FusionCameraDetectionComponent::SetCameraHeightAndPitch() {
       default_camera_pitch_);
 }
 
+// 02处理
 int FusionCameraDetectionComponent::InternalProc(
     const std::shared_ptr<apollo::drivers::Image const> &in_message,
     const std::string &camera_name, apollo::common::ErrorCode *error_code,

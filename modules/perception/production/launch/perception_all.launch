@@ -9,6 +9,7 @@
          ./conf/dag_streaming_0.conf -->
     <module>
         <name>perception</name>
+        <!-- Perception 模块中的 入口dag 路径============================ -->
         <dag_conf>/apollo/modules/perception/production/dag/dag_streaming_perception.dag</dag_conf>
         <!-- if not set, use default process -->
         <process_name>perception</process_name>
@@ -16,6 +17,7 @@
     </module>
     <module>
         <name>perception_camera</name>
+        <!-- 相机 -->
         <dag_conf>/apollo/modules/perception/production/dag/dag_streaming_perception_camera.dag</dag_conf>
         <!-- if not set, use default process -->
         <process_name>perception</process_name>
@@ -24,6 +26,7 @@
 
     <module>
         <name>perception_traffic_light</name>
+        <!-- 交通灯 -->
         <dag_conf>/apollo/modules/perception/production/dag/dag_streaming_perception_trafficlights.dag</dag_conf>
         <!-- if not set, use default process -->
         <process_name>perception_trafficlights</process_name>

@@ -31,7 +31,7 @@ namespace apollo {
 namespace perception {
 namespace onboard {
 
-class DetectionComponent : public cyber::Component<drivers::PointCloud> {
+class DetectionComponent : public cyber::Component<drivers::PointCloud> { // PointCloud:可以看到是以点云数据输入为主
  public:
   DetectionComponent() = default;
   virtual ~DetectionComponent() = default;

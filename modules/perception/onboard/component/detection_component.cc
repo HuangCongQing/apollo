@@ -31,6 +31,8 @@ namespace onboard {
 
 std::atomic<uint32_t> DetectionComponent::seq_num_{0};
 
+// Init 和 Proc 是组件两个核心方法。
+// 初始化
 bool DetectionComponent::Init() {
   LidarDetectionComponentConfig comp_config;
   if (!GetProtoConfig(&comp_config)) {
@@ -53,6 +55,7 @@ bool DetectionComponent::Init() {
   return true;
 }
 
+// 处理过程
 bool DetectionComponent::Proc(
     const std::shared_ptr<drivers::PointCloud>& message) {
   AINFO << std::setprecision(16)
@@ -62,7 +65,7 @@ bool DetectionComponent::Proc(
 
   auto out_message = std::make_shared<LidarFrameMessage>();
 
-  bool status = InternalProc(message, out_message);
+  bool status = InternalProc(message, out_message); // 具体实现
   if (status) {
     writer_->Write(out_message);
     AINFO << "Send lidar detect output message.";
