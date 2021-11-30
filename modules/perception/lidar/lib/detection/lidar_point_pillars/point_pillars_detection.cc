@@ -59,9 +59,10 @@ bool PointPillarsDetection::Init(const DetectionInitOptions& options) {
   return true;
 }
 
+// pointpillars检测===================================================
 bool PointPillarsDetection::Detect(const DetectionOptions& options,
                                    LidarFrame* frame) {
-  // check input
+  // check input 01 frame是否为空
   if (frame == nullptr) {
     AERROR << "Input null frame ptr.";
     return false;
@@ -94,7 +95,8 @@ bool PointPillarsDetection::Detect(const DetectionOptions& options,
   cur_cloud_ptr_ = std::shared_ptr<base::PointFCloud>(
       new base::PointFCloud(*original_cloud_));
 
-  // down sample the point cloud through filtering beams
+  // 02 降采样 down sample the point cloud through filtering beams
+  // modules/perception/base/point_cloud_util.cc
   if (FLAGS_enable_downsample_beams) {
     base::PointFCloudPtr downsample_beams_cloud_ptr(new base::PointFCloud());
     if (DownSamplePointCloudBeams(original_cloud_, downsample_beams_cloud_ptr,
@@ -129,14 +131,16 @@ bool PointPillarsDetection::Detect(const DetectionOptions& options,
   num_points = cur_cloud_ptr_->size();
   AINFO << "num points before fusing: " << num_points;
 
-  // fuse clouds of preceding frames with current cloud
+  // 03 融合  fuse 的是当前的点云和之前的点云。 fuse clouds of preceding frames with current cloud
   cur_cloud_ptr_->mutable_points_timestamp()->assign(cur_cloud_ptr_->size(),
                                                      0.0);
   if (FLAGS_enable_fuse_frames && FLAGS_num_fuse_frames > 1) {
     // before fusing
+    // 融合也不代表所有的历史点云都参与融合。
+    // 超过 FLAGS_fuse_time_interval 就直接被剔除。
     while (!prev_world_clouds_.empty() &&
            frame->timestamp - prev_world_clouds_.front()->get_timestamp() >
-               FLAGS_fuse_time_interval) {
+               FLAGS_fuse_time_interval) { // 0.5秒 modules/perception/common/perception_gflags.cc
       prev_world_clouds_.pop_front();
     }
     // transform current cloud to world coordinate and save to a new ptr
@@ -171,7 +175,8 @@ bool PointPillarsDetection::Detect(const DetectionOptions& options,
   AINFO << "num points after fusing: " << num_points;
   fuse_time_ = timer.toc(true);
 
-  // shuffle points and cut off
+  // 04 shuffle 打乱？？shuffle points and cut off
+  // 数据融合之后，再做一些 shuffle 之类的操作就直接送到推断引擎中去做前向推断了，最后又通过神经网络输出的结果得到最终的检测目标。
   if (FLAGS_enable_shuffle_points) {
     num_points = std::min(num_points, FLAGS_max_num_points);
     std::vector<int> point_indices = GenerateIndices(0, num_points, true);
@@ -181,23 +186,25 @@ bool PointPillarsDetection::Detect(const DetectionOptions& options,
   }
   shuffle_time_ = timer.toc(true);
 
-  // point cloud to array
+  // 05 点云转换为数组格式  point cloud to array
   float* points_array = new float[num_points * FLAGS_num_point_feature]();
   CloudToArray(cur_cloud_ptr_, points_array, FLAGS_normalizing_factor);
   cloud_to_array_time_ = timer.toc(true);
 
-  // inference
+  // 06 inference 推断引擎应用的是工厂模式
   std::vector<float> out_detections;
   std::vector<int> out_labels;
   point_pillars_ptr_->DoInference(points_array, num_points, &out_detections,
                                   &out_labels);
   inference_time_ = timer.toc(true);
 
-  // transfer output bounding boxes to objects
+  // 07 转成3D框  transfer output bounding boxes to objects
   GetObjects(&frame->segmented_objects, frame->lidar2world_pose,
              &out_detections, &out_labels);
   collect_time_ = timer.toc(true);
 
+  // 输出日志
+  AINFO << "PointPillars:检测完毕"<< "\n";
   AINFO << "PointPillars: " << "\n"
         << "down sample: " << downsample_time_ << "\t"
         << "fuse: " << fuse_time_ << "\t"

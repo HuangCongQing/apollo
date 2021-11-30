@@ -24,9 +24,12 @@ namespace apollo {
 namespace perception {
 namespace base {
 
+// 降采样===========================
 bool DownSamplePointCloudBeams(base::PointFCloudPtr cloud_ptr,
                                base::PointFCloudPtr out_cloud_ptr,
                                int downsample_factor) {
+  // 在这里 downsample_factor 是大于 1 的整数，是下采样的因子，
+  // 有点像卷积操作中的 stride，每隔 downsample_factor 取一点，最终减少了总体点云数据量。
   if (downsample_factor <= 0) {
     return false;
   }

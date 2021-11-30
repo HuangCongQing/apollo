@@ -63,7 +63,7 @@ class LidarObstacleDetection {
 
  private:
   PointCloudPreprocessor cloud_preprocessor_;
-  std::unique_ptr<PointPillarsDetection> detector_;
+  std::unique_ptr<PointPillarsDetection> detector_; // pointpillars
   // params
   std::string detector_name_;
 };  // class LidarObstacleDetection

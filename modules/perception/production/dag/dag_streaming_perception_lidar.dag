@@ -5,7 +5,7 @@ module_config {
     class_name : "DetectionComponent" # 对应cpp文件perception/onboard/component/detection_component.cc
     config {
       name: "Velodyne128Detection"
-      config_file_path: "/apollo/modules/perception/production/conf/perception/lidar/velodyne128_detection_conf.pb.txt"
+      config_file_path: "/apollo/modules/perception/production/conf/perception/lidar/velodyne128_detection_conf.pb.txt" # 配置文件
       flag_file_path: "/apollo/modules/perception/production/conf/perception/perception_common.flag"
       readers {
           channel: "/apollo/sensor/lidar128/compensator/PointCloud2"

@@ -612,6 +612,7 @@ void PointPillars::Preprocess(const float* in_points_array,
   }
 }
 
+// 推断引擎应用的是工厂模式==========================================
 void PointPillars::DoInference(const float* in_points_array,
                                const int in_num_points,
                                std::vector<float>* out_detections,

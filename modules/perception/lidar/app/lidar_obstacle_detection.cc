@@ -75,7 +75,7 @@ LidarProcessResult LidarObstacleDetection::Process(
                             "Failed to preprocess point cloud.");
 }
 
-// 检测处理2
+// 检测处理2===================================================
 LidarProcessResult LidarObstacleDetection::Process(
     const LidarObstacleDetectionOptions& options,
     const std::shared_ptr<apollo::drivers::PointCloud const>& message,
@@ -89,6 +89,8 @@ LidarProcessResult LidarObstacleDetection::Process(
   preprocessor_options.sensor2novatel_extrinsics =
       options.sensor2novatel_extrinsics;
   PERF_BLOCK_END_WITH_INDICATOR(sensor_name, "preprocess");
+  // 1. 点云预处理 modules/perception/lidar/lib/pointcloud_preprocessor/pointcloud_preprocessor.cc
+  // 2. 点云检测 modules/perception/lidar/lib/detection/lidar_point_pillars/point_pillars_detection.cc
   if (cloud_preprocessor_.Preprocess(preprocessor_options, message, frame)) {
     return ProcessCommon(options, frame);
   }
@@ -102,7 +104,7 @@ LidarProcessResult LidarObstacleDetection::ProcessCommon(
 
   PERF_BLOCK_START();
   DetectionOptions detection_options;
-  if (!detector_->Detect(detection_options, frame)) {
+  if (!detector_->Detect(detection_options, frame)) { // modules/perception/lidar/lib/detection/lidar_point_pillars/point_pillars_detection.cc
     return LidarProcessResult(LidarErrorCode::DetectionError,
                               "Failed to detect.");
   }

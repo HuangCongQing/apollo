@@ -63,6 +63,7 @@ bool PointCloudPreprocessor::Init(
   return true;
 }
 
+// 点云预处理============================================================
 bool PointCloudPreprocessor::Preprocess(
     const PointCloudPreprocessorOptions& options,
     const std::shared_ptr<apollo::drivers::PointCloud const>& message,
@@ -116,6 +117,7 @@ bool PointCloudPreprocessor::Preprocess(
   return true;
 }
 
+// 不运行
 bool PointCloudPreprocessor::Preprocess(
     const PointCloudPreprocessorOptions& options, LidarFrame* frame) const {
   if (frame == nullptr || frame->cloud == nullptr) {
