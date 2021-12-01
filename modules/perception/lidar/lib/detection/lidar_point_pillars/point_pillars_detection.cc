@@ -62,6 +62,7 @@ bool PointPillarsDetection::Init(const DetectionInitOptions& options) {
 // pointpillars检测===================================================
 bool PointPillarsDetection::Detect(const DetectionOptions& options,
                                    LidarFrame* frame) {
+  AINFO << "pointpillars检测==============================";
   // check input 01 frame是否为空
   if (frame == nullptr) {
     AERROR << "Input null frame ptr.";

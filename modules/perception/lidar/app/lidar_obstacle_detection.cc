@@ -28,7 +28,8 @@ namespace lidar {
 // 初始化
 bool LidarObstacleDetection::Init(
     const LidarObstacleDetectionInitOptions& options) {
-  AINFO << "激光雷达目标检测初始化==============================";
+  AINFO << "01激光雷达目标检测初始化==============================";
+  std::cout << "01激光雷达目标检测初始化==============================";
   auto& sensor_name = options.sensor_name;
   auto config_manager = lib::ConfigManager::Instance();
   const lib::ModelConfig* model_config = nullptr;
@@ -80,6 +81,7 @@ LidarProcessResult LidarObstacleDetection::Process(
     const LidarObstacleDetectionOptions& options,
     const std::shared_ptr<apollo::drivers::PointCloud const>& message,
     LidarFrame* frame) {
+  AINFO << "02激光雷达目标检测Process==============================";
   const auto& sensor_name = options.sensor_name;
 
   PERF_FUNCTION_WITH_INDICATOR(options.sensor_name);
