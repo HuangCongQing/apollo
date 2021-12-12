@@ -59,7 +59,7 @@ bool PointPillarsDetection::Init(const DetectionInitOptions& options) {
   return true;
 }
 
-// pointpillars检测===================================================
+// pointpillars检测 main===================================================
 bool PointPillarsDetection::Detect(const DetectionOptions& options,
                                    LidarFrame* frame) {
   AINFO << "pointpillars检测==============================";

@@ -63,7 +63,7 @@ bool PointCloudPreprocessor::Init(
   return true;
 }
 
-// 点云预处理============================================================
+// 不允许这个点云预处理，运行下面那个函数
 bool PointCloudPreprocessor::Preprocess(
     const PointCloudPreprocessorOptions& options,
     const std::shared_ptr<apollo::drivers::PointCloud const>& message,
@@ -87,7 +87,7 @@ bool PointCloudPreprocessor::Preprocess(
         if (std::isnan(pt.x()) || std::isnan(pt.y()) || std::isnan(pt.z())) {
           continue;
         }
-        if (fabs(pt.x()) > kPointInfThreshold ||
+        if (fabs(pt.x()) > kPointInfThreshold || // kPointInfThreshold= 1e3
             fabs(pt.y()) > kPointInfThreshold ||
             fabs(pt.z()) > kPointInfThreshold) {
           continue;
@@ -96,19 +96,22 @@ bool PointCloudPreprocessor::Preprocess(
       Eigen::Vector3d vec3d_lidar(pt.x(), pt.y(), pt.z());
       Eigen::Vector3d vec3d_novatel =
           options.sensor2novatel_extrinsics * vec3d_lidar;
+      // 过滤x,y
       if (filter_nearby_box_points_ && vec3d_novatel[0] < box_forward_x_ &&
           vec3d_novatel[0] > box_backward_x_ &&
           vec3d_novatel[1] < box_forward_y_ &&
           vec3d_novatel[1] > box_backward_y_) {
         continue;
       }
-      if (filter_high_z_points_ && pt.z() > z_threshold_) {
+      // 过滤z
+      if (filter_high_z_points_ && pt.z() > z_threshold_) { // 5.0f 过滤z
         continue;
       }
       point.x = pt.x();
       point.y = pt.y();
       point.z = pt.z();
       point.intensity = static_cast<float>(pt.intensity());
+      // 保存在frame->cloud
       frame->cloud->push_back(point, static_cast<double>(pt.timestamp()) * 1e-9,
                               std::numeric_limits<float>::max(), i, 0);
     }
@@ -117,7 +120,7 @@ bool PointCloudPreprocessor::Preprocess(
   return true;
 }
 
-// 不运行
+// main预处理函数========================================
 bool PointCloudPreprocessor::Preprocess(
     const PointCloudPreprocessorOptions& options, LidarFrame* frame) const {
   if (frame == nullptr || frame->cloud == nullptr) {
@@ -129,6 +132,7 @@ bool PointCloudPreprocessor::Preprocess(
   if (frame->cloud->size() > 0) {
     size_t size = frame->cloud->size();
     size_t i = 0;
+    // 遍历所有点
     while (i < size) {
       auto& pt = frame->cloud->at(i);
       if (filter_naninf_points_) {

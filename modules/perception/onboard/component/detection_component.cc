@@ -121,7 +121,7 @@ bool DetectionComponent::InternalProc(
   out_message->process_stage_ = ProcessStage::LIDAR_DETECTION;
   out_message->error_code_ = apollo::common::ErrorCode::OK;
 
-  auto& frame = out_message->lidar_frame_;
+  auto& frame = out_message->lidar_frame_; // out_message.frame.segmented_objects障碍物信息
   frame = lidar::LidarFramePool::Instance().Get();
   frame->cloud = base::PointFCloudPool::Instance().Get();
   frame->timestamp = timestamp;
@@ -138,7 +138,7 @@ bool DetectionComponent::InternalProc(
     return false;
   }
 
-  frame->lidar2world_pose = pose;
+  frame->lidar2world_pose = pose; // 坐标系转换
 
   lidar::LidarObstacleDetectionOptions detect_opts;
   detect_opts.sensor_name = sensor_name_;

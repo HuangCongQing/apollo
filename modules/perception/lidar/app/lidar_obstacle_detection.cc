@@ -69,7 +69,7 @@ LidarProcessResult LidarObstacleDetection::Process(
   PointCloudPreprocessorOptions preprocessor_options;
   preprocessor_options.sensor2novatel_extrinsics =
       options.sensor2novatel_extrinsics;
-  if (cloud_preprocessor_.Preprocess(preprocessor_options, frame)) {
+  if (cloud_preprocessor_.Preprocess(preprocessor_options, frame)) { // lib/pointcloud_preprocessor/pointcloud_preprocessor.cc
     return ProcessCommon(options, frame); // 下面调用
   }
   return LidarProcessResult(LidarErrorCode::PointCloudPreprocessorError,
