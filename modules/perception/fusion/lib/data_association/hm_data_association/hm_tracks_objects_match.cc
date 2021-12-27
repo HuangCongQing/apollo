@@ -43,7 +43,7 @@ void extract_vector(const std::vector<T>& vec,
     sub_vec->push_back(vec[subset_ind]);
   }
 }
-
+// 1.1关联匹配--HMTrackersObjectsAssociation============================================main
 bool HMTrackersObjectsAssociation::Associate(
     const AssociationOptions& options, SensorFramePtr sensor_measurements,
     ScenePtr scene, AssociationResult* association_result) {

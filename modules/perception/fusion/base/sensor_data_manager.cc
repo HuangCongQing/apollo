@@ -40,7 +40,8 @@ void SensorDataManager::Reset() {
   sensor_manager_ = nullptr;
   sensors_.clear();
 }
-
+// 传感器数据管理，保存最新数据到一个map结构中，map为每个sensor对应的数据队列=================================main
+// SensorDataManager：所有传感器的历史十帧数据
 void SensorDataManager::AddSensorMeasurements(
     const base::FrameConstPtr& frame_ptr) {
   const base::SensorInfo& sensor_info = frame_ptr->sensor_info;
