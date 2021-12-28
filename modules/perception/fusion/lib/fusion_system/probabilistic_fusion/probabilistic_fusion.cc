@@ -227,7 +227,7 @@ void ProbabilisticFusion::FuseForegroundTrack(const SensorFramePtr& frame) {
   PERF_BLOCK_START();
   std::string indicator = "fusion_" + frame->GetSensorId();
 
-  // 1.1关联匹配--HMTrackersObjectsAssociation 
+  // 1.1关联匹配--HMTrackersObjectsAssociation >>>>>>>>>
   // modules/perception/fusion/lib/data_association/hm_data_association/hm_tracks_objects_match.cc
   AssociationOptions options;
   AssociationResult association_result; // 得到association结果

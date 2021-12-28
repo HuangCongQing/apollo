@@ -43,38 +43,53 @@ void extract_vector(const std::vector<T>& vec,
     sub_vec->push_back(vec[subset_ind]);
   }
 }
-// 1.1关联匹配--HMTrackersObjectsAssociation============================================main
+// 1.1关联匹配sensor_objects--fusion_tracks--HMTrackersObjectsAssociation类============================================main
+// https://www.yuque.com/huangzhongqing/crvg1o/quly5v
 bool HMTrackersObjectsAssociation::Associate(
-    const AssociationOptions& options, SensorFramePtr sensor_measurements,
+    const AssociationOptions& options, SensorFramePtr sensor_measurements, // SensorFrame：一帧所有的目标
     ScenePtr scene, AssociationResult* association_result) {
+  // sensor观测
   const std::vector<SensorObjectPtr>& sensor_objects =
       sensor_measurements->GetForegroundObjects();
-  const std::vector<TrackPtr>& fusion_tracks = scene->GetForegroundTracks();
+  // tracks航迹
+  const std::vector<TrackPtr>& fusion_tracks = scene->GetForegroundTracks(); // tracks航迹
+  // 关联矩阵
   std::vector<std::vector<double>> association_mat;
 
+  // 校验，若航迹或观测为空empty，未分配航迹和未分配观测初始化大小，return不进行assign
   if (fusion_tracks.empty() || sensor_objects.empty()) {
     association_result->unassigned_tracks.resize(fusion_tracks.size());
     association_result->unassigned_measurements.resize(sensor_objects.size());
+    // 0,1,2,3...简洁写法初始化
     std::iota(association_result->unassigned_tracks.begin(),
               association_result->unassigned_tracks.end(), 0);
     std::iota(association_result->unassigned_measurements.begin(),
               association_result->unassigned_measurements.end(), 0);
     return true;
   }
+
+  //sensor型号
   std::string measurement_sensor_id = sensor_objects[0]->GetSensorId();
+  //sensor时间戳
   double measurement_timestamp = sensor_objects[0]->GetTimestamp();
+  //重置之前的计算距离
   track_object_distance_.ResetProjectionCache(measurement_sensor_id,
                                               measurement_timestamp);
+  //前毫米波雷达不进行ID匹配 
   bool do_nothing = (sensor_objects[0]->GetSensorId() == "radar_front");
+  // 1.ID进行匹配,track之前匹配过的障碍物ID，得到association_result的三个结果，============================================================
+  //   存储的是fusion_tracks和sensor_objects的index
   IdAssign(fusion_tracks, sensor_objects, &association_result->assignments,
            &association_result->unassigned_tracks,
            &association_result->unassigned_measurements, do_nothing, false);
 
-  Eigen::Affine3d pose;
-  sensor_measurements->GetPose(&pose);
-  Eigen::Vector3d ref_point = pose.translation();
+  Eigen::Affine3d pose; // 4*4的齐次转换矩阵
+  sensor_measurements->GetPose(&pose); // sensor2world的转换
+  Eigen::Vector3d ref_point = pose.translation(); //平移向量====================
 
   ADEBUG << "association_measurement_timestamp@" << measurement_timestamp;
+  // 2.计算关联距离矩阵association_mat[num_track,num_meas],取最小欧式距离==========================!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  // 计算的关联矩阵是unassigned_tracks和unassigned_measurements的之间的,没有assignments
   ComputeAssociationDistanceMat(fusion_tracks, sensor_objects, ref_point,
                                 association_result->unassigned_tracks,
                                 association_result->unassigned_measurements,
@@ -82,16 +97,23 @@ bool HMTrackersObjectsAssociation::Associate(
 
   int num_track = static_cast<int>(fusion_tracks.size());
   int num_measurement = static_cast<int>(sensor_objects.size());
+  // 初始化置0,航迹track到观测object的距离,观测到航迹的距离
   association_result->track2measurements_dist.assign(num_track, 0);
   association_result->measurement2track_dist.assign(num_measurement, 0);
+
+  // g:global l:local 两个转换便于查询观测和航迹的index
+  // track_ind_l2g[i]=track_index, track_ind_g2l[track_index]=i. 
   std::vector<int> track_ind_g2l;
   track_ind_g2l.resize(num_track, -1);
+  // track_ind_l2g
   for (size_t i = 0; i < association_result->unassigned_tracks.size(); i++) {
     track_ind_g2l[association_result->unassigned_tracks[i]] =
         static_cast<int>(i);
   }
+  // measurement_ind_l2g[i]=obj_index, measurement_ind_g2l[obj_index]=i;
   std::vector<int> measurement_ind_g2l;
   measurement_ind_g2l.resize(num_measurement, -1);
+  // measurement_ind_l2g
   std::vector<size_t> measurement_ind_l2g =
       association_result->unassigned_measurements;
   for (size_t i = 0; i < association_result->unassigned_measurements.size();
@@ -101,17 +123,23 @@ bool HMTrackersObjectsAssociation::Associate(
   }
   std::vector<size_t> track_ind_l2g = association_result->unassigned_tracks;
 
+  // 校验，未分配航迹或未分配观测为空，则结束
   if (association_result->unassigned_tracks.empty() ||
       association_result->unassigned_measurements.empty()) {
     return true;
   }
 
+  // 3.最小化匹配(匈牙利匹配)=========================================================================  
+  // g:global l:local 两个转换便于查询观测和航迹的index
+  // track_ind_l2g[i]=track_index, track_ind_g2l[track_index]=i. 
+  // 关联矩阵对应的是i，通过l2g转换为index，插入到对应的三个vector中
   bool state = MinimizeAssignment(
       association_mat, track_ind_l2g, measurement_ind_l2g,
       &association_result->assignments, &association_result->unassigned_tracks,
       &association_result->unassigned_measurements);
 
   // start do post assign
+  // 4.单独再做一遍IdAssign，未分配的航迹（仅有相机观测生成的）和未分配的观测=================================
   std::vector<TrackMeasurmentPair> post_assignments;
   PostIdAssign(fusion_tracks, sensor_objects,
                association_result->unassigned_tracks,
@@ -120,17 +148,19 @@ bool HMTrackersObjectsAssociation::Associate(
                                          post_assignments.begin(),
                                          post_assignments.end());
 
+  // 5.排除匹配了的，生成未匹配的航迹track和观测meas======================================================
   GenerateUnassignedData(fusion_tracks.size(), sensor_objects.size(),
                          association_result->assignments,
                          &association_result->unassigned_tracks,
                          &association_result->unassigned_measurements);
 
+  // 6.保存航迹track和观测meas的关联值（最小距离），到association_result中=================================
   ComputeDistance(fusion_tracks, sensor_objects,
                   association_result->unassigned_tracks, track_ind_g2l,
                   measurement_ind_g2l, measurement_ind_l2g, association_mat,
                   association_result);
 
-  AINFO << "association: measurement_num = " << sensor_objects.size()
+  AINFO << "关联association: measurement_num = " << sensor_objects.size()
         << ", track_num = " << fusion_tracks.size()
         << ", assignments = " << association_result->assignments.size()
         << ", unassigned_tracks = "
@@ -140,6 +170,7 @@ bool HMTrackersObjectsAssociation::Associate(
 
   return state;
 }
+// 4 PostIdAssign
 void HMTrackersObjectsAssociation::PostIdAssign(
     const std::vector<TrackPtr>& fusion_tracks,
     const std::vector<SensorObjectPtr>& sensor_objects,
@@ -173,6 +204,10 @@ void HMTrackersObjectsAssociation::PostIdAssign(
   }
 }
 
+// 3.最小化匹配(匈牙利匹配)=========================================================================  
+// g:global l:local 两个转换便于查询观测和航迹的index
+// track_ind_l2g[i]=track_index, track_ind_g2l[track_index]=i. 
+// 关联矩阵对应的是i，通过l2g转换为index，插入到对应的三个vector中
 bool HMTrackersObjectsAssociation::MinimizeAssignment(
     const std::vector<std::vector<double>>& association_mat,
     const std::vector<size_t>& track_ind_l2g,
@@ -180,34 +215,46 @@ bool HMTrackersObjectsAssociation::MinimizeAssignment(
     std::vector<TrackMeasurmentPair>* assignments,
     std::vector<size_t>* unassigned_tracks,
     std::vector<size_t>* unassigned_measurements) {
+  //匈牙利匹配:最小距离
   common::GatedHungarianMatcher<float>::OptimizeFlag opt_flag =
-      common::GatedHungarianMatcher<float>::OptimizeFlag::OPTMIN;
+  //关联矩阵指针 指向匈牙利类的全局关联矩阵
+  common::GatedHungarianMatcher<float>::OptimizeFlag::OPTMIN;
   common::SecureMat<float>* global_costs = optimizer_.mutable_global_costs();
+  //行:tracks 列:object(观测)
   int rows = static_cast<int>(unassigned_tracks->size());
   int cols = static_cast<int>(unassigned_measurements->size());
 
+  //最小距离关联矩阵赋值给指针global_costs，即赋值给匈牙利类optimizer_的关联矩阵变量
   global_costs->Resize(rows, cols);
   for (int r_i = 0; r_i < rows; r_i++) {
     for (int c_i = 0; c_i < cols; c_i++) {
       (*global_costs)(r_i, c_i) = static_cast<float>(association_mat[r_i][c_i]);
     }
   }
+  // 三个vector存储的都是关联矩阵的序号i，要转换到global的index
   std::vector<TrackMeasurmentPair> local_assignments;
   std::vector<size_t> local_unassigned_tracks;
   std::vector<size_t> local_unassigned_measurements;
+
+  //阈值4,边界100，计算连通子图，每个连通子图进行匈牙利匹配
+  // 其中最主要的是match函数=====================================modules/perception/common/graph/gated_hungarian_bigraph_matcher.h
   optimizer_.Match(static_cast<float>(s_match_distance_thresh_),
                    static_cast<float>(s_match_distance_bound_), opt_flag,
                    &local_assignments, &local_unassigned_tracks,
                    &local_unassigned_measurements);
+  //在之前Idassign后，补充现在匹配上的航迹和观测的index
   for (auto assign : local_assignments) {
     assignments->push_back(std::make_pair(track_ind_l2g[assign.first],
                                           measurement_ind_l2g[assign.second]));
   }
+  // 清除之前未匹配的结果，做了关联计算之后要重新生成新的未匹配结果
   unassigned_tracks->clear();
   unassigned_measurements->clear();
+  //未匹配上的track_index
   for (auto un_track : local_unassigned_tracks) {
     unassigned_tracks->push_back(track_ind_l2g[un_track]);
   }
+  //未匹配上的观测object_index
   for (auto un_mea : local_unassigned_measurements) {
     unassigned_measurements->push_back(measurement_ind_l2g[un_mea]);
   }
@@ -292,6 +339,7 @@ void HMTrackersObjectsAssociation::ComputeDistance(
   }
 }
 
+// 2 计算关联距离矩阵association_mat[num_track,num_meas],取最小欧式距离!!!!!!!!!!!!!!!!!!!!!!
 void HMTrackersObjectsAssociation::ComputeAssociationDistanceMat(
     const std::vector<TrackPtr>& fusion_tracks,
     const std::vector<SensorObjectPtr>& sensor_objects,
@@ -304,22 +352,27 @@ void HMTrackersObjectsAssociation::ComputeAssociationDistanceMat(
   // TODO(linjian) ref_point
   Eigen::Vector3d tmp = Eigen::Vector3d::Zero();
   opt.ref_point = &tmp;
+  //两重for循环,外循环track航迹,内循环object观测
   association_mat->resize(unassigned_tracks.size());
   for (size_t i = 0; i < unassigned_tracks.size(); ++i) {
     int fusion_idx = static_cast<int>(unassigned_tracks[i]);
     (*association_mat)[i].resize(unassigned_measurements.size());
-    const TrackPtr& fusion_track = fusion_tracks[fusion_idx];
+    const TrackPtr& fusion_track = fusion_tracks[fusion_idx]; // 得到fusion_track
     for (size_t j = 0; j < unassigned_measurements.size(); ++j) {
       int sensor_idx = static_cast<int>(unassigned_measurements[j]);
-      const SensorObjectPtr& sensor_object = sensor_objects[sensor_idx];
+      const SensorObjectPtr& sensor_object = sensor_objects[sensor_idx]; // 得到sensor_object
       double distance = s_match_distance_thresh_;
+      //中心点距离
       double center_dist =
           (sensor_object->GetBaseObject()->center -
            fusion_track->GetFusedObject()->GetBaseObject()->center)
               .norm();
-      if (center_dist < s_association_center_dist_threshold_) {
+      //中心点距离<30米 代码注释中讲到，因为 2D 到 3D 转换误差太大，所以数据关联的时候，阈值设置的很宽松，在这里是 30m，为了防止 camera 检测到的目标和 Lidar 的目标匹配不上。
+      // 这一行解释其实也透露出了在实际数据关联时常见的无奈
+      if (center_dist < s_association_center_dist_threshold_) { // 30
+        //计算欧式距离
         distance =
-            track_object_distance_.Compute(fusion_track, sensor_object, opt);
+            track_object_distance_.Compute(fusion_track, sensor_object, opt); // 重要!important========================
       } else {
         ADEBUG << "center_distance " << center_dist
                << " exceeds slack threshold "
@@ -335,45 +388,68 @@ void HMTrackersObjectsAssociation::ComputeAssociationDistanceMat(
   }
 }
 
+/**1  ID匹配,track关联之前匹配过的障碍物ID,主要是lidar和camera,radar直接返回了=================================================
+ * assignments--track航迹和object观测配对
+ * unassigned_fusion_tracks--track里没有该obj
+ * unassigned_sensor_objects--obj不在track里
+*/
 void HMTrackersObjectsAssociation::IdAssign(
     const std::vector<TrackPtr>& fusion_tracks,
-    const std::vector<SensorObjectPtr>& sensor_objects,
+    const std::vector<SensorObjectPtr>& sensor_objects, // 
     std::vector<TrackMeasurmentPair>* assignments,
     std::vector<size_t>* unassigned_fusion_tracks,
     std::vector<size_t>* unassigned_sensor_objects, bool do_nothing,
     bool post) {
   size_t num_track = fusion_tracks.size();
   size_t num_obj = sensor_objects.size();
+  // 校验,初始化,radar是do_nothing
   if (num_track == 0 || num_obj == 0 || do_nothing) {
-    unassigned_fusion_tracks->resize(num_track);
-    unassigned_sensor_objects->resize(num_obj);
+    unassigned_fusion_tracks->resize(num_track); // track(某次融合时,sensor objs=0, 会将 unassigned_tracks 结果更新。)
+    unassigned_sensor_objects->resize(num_obj); // obj(第一次融合,track=0, unassigned_sensor_objects数量置为 objs 的数量.)
+    // 0,1,2...num_track
     std::iota(unassigned_fusion_tracks->begin(),
               unassigned_fusion_tracks->end(), 0);
+    // 0,1,2...num_obj
     std::iota(unassigned_sensor_objects->begin(),
               unassigned_sensor_objects->end(), 0);
     return;
   }
-  const std::string sensor_id = sensor_objects[0]->GetSensorId();
+  //传感器类型
+  const std::string sensor_id = sensor_objects[0]->GetSensorId(); // 这一帧的sensor_id
 
   std::map<int, int> sensor_id_2_track_ind;
+  // 1.trackers循环,找到track中该传感器对应的object_id，放入到map中==========================
   for (size_t i = 0; i < num_track; i++) {
-    SensorObjectConstPtr obj = fusion_tracks[i]->GetSensorObject(sensor_id);
+    // sensor_id对应的track中的object(lidar,radar,camera)
+    SensorObjectConstPtr obj = fusion_tracks[i]->GetSensorObject(sensor_id); //找到track中该传感器对应的object_id
     /* when camera system has sub-fusion of obstacle & narrow, they share
      * the same track-id sequence. thus, latest camera object is ok for
      * camera id assign and its information is more up to date. */
+    // 前视摄像头的对象要区别对待
     if (sensor_id == "front_6mm" || sensor_id == "front_12mm") {
-      obj = fusion_tracks[i]->GetLatestCameraObject();
+      obj = fusion_tracks[i]->GetLatestCameraObject(); // 得到最近的Camera障碍物
     }
     if (obj == nullptr) {
       continue;
     }
-    sensor_id_2_track_ind[obj->GetBaseObject()->track_id] = static_cast<int>(i);
+    // 匹配track中obj,[obj_id,track_index]存入到map中
+    sensor_id_2_track_ind[obj->GetBaseObject()->track_id] = static_cast<int>(i); // 
   }
+
+  //保留哪些Index之前是匹配上的  track和object匹配过
   std::vector<bool> fusion_used(num_track, false);
   std::vector<bool> sensor_used(num_obj, false);
+  //2.遍历objects循环，在map中寻找当前帧的obj_id，找到了就相互配对，对应位置置true===================
   for (size_t i = 0; i < num_obj; i++) {
+    //object的id
     int track_id = sensor_objects[i]->GetBaseObject()->track_id;
+    //找该object对应的map索引
     auto it = sensor_id_2_track_ind.find(track_id);
+
+    // 非post且传感器是窄视角（长焦）相机，不做id_assign。
+    // associate函数中，post为false
+    // 第一遍IdAssign不对窄视角相机观测做匹配
+    // TODOtcx:没搞明白（第二遍PostIdAssign对单独的相机航迹和未分配的观测做匹配）
 
     // In id_assign, we don't assign the narrow camera object
     // with the track which only have narrow camera object
@@ -381,17 +457,21 @@ void HMTrackersObjectsAssociation::IdAssign(
     if (!post && (sensor_id == "front_6mm" || sensor_id == "front_12mm"))
       continue;
 
+    //该object在之前trackers中,相应的位置置true,并进行匹配到相应tracker上,用pair保存
+    // 找到了就给 sensor_used 和 fusion_used 赋值
     if (it != sensor_id_2_track_ind.end()) {
       sensor_used[i] = true;
       fusion_used[it->second] = true;
       assignments->push_back(std::make_pair(it->second, i));
     }
   }
+  //3.没有ID匹配到的tracker保存==============================================================
   for (size_t i = 0; i < fusion_used.size(); ++i) {
     if (!fusion_used[i]) {
       unassigned_fusion_tracks->push_back(i);
     }
   }
+  //4.没有ID匹配到的object保存===============================================================
   for (size_t i = 0; i < sensor_used.size(); ++i) {
     if (!sensor_used[i]) {
       unassigned_sensor_objects->push_back(i);

@@ -299,7 +299,7 @@ bool TrackObjectDistance::LidarCameraCenterDistanceExceedDynamicThreshold(
   return false;
 }
 
-// @brief: compute the distance between input fused track and sensor object
+// @brief: 计算距离 compute the distance between input fused track and sensor object================main
 // @return track object distance
 float TrackObjectDistance::Compute(const TrackPtr& fused_track,
                                    const SensorObjectPtr& sensor_object,
@@ -319,8 +319,10 @@ float TrackObjectDistance::Compute(const TrackPtr& fused_track,
   SensorObjectConstPtr lidar_object = fused_track->GetLatestLidarObject();
   SensorObjectConstPtr radar_object = fused_track->GetLatestRadarObject();
   SensorObjectConstPtr camera_object = fused_track->GetLatestCameraObject();
+  // 如果是lidar
   if (IsLidar(sensor_object)) {
     if (lidar_object != nullptr) {
+      // 如果两个 Lidar 对象的中心距离大于 10 米，那么它们的距离就被重置为 max，也就是一个最大数，表示不是一个对象。
       distance = ComputeLidarLidar(lidar_object, sensor_object, *ref_point);
       min_distance = std::min(distance, min_distance);
     }
@@ -335,6 +337,7 @@ float TrackObjectDistance::Compute(const TrackPtr& fused_track,
                                     is_lidar_track_id_consistent);
       min_distance = std::min(distance, min_distance);
     }
+    // 如果是radar
   } else if (IsRadar(sensor_object)) {
     if (lidar_object != nullptr) {
       distance = ComputeLidarRadar(lidar_object, sensor_object, *ref_point);
@@ -374,6 +377,7 @@ float TrackObjectDistance::ComputeLidarLidar(
                             fused_object->GetBaseObject()->center)
                                .head(2)
                                .norm();
+  // 如果两个 Lidar 对象的中心距离大于 10 米，那么它们的距离就被重置为 max，也就是一个最大数，表示不是一个对象。
   if (center_distance > s_lidar2lidar_association_center_dist_threshold_) {
     ADEBUG << "center distance exceed lidar2lidar tight threshold: "
            << "center_dist@" << center_distance << ", "
@@ -381,9 +385,10 @@ float TrackObjectDistance::ComputeLidarLidar(
            << s_lidar2lidar_association_center_dist_threshold_;
     return (std::numeric_limits<float>::max)();
   }
+  // 如果在 10 米范围内，那就调用 ComputePolygonDistance3d（）方法。
   float distance =
       ComputePolygonDistance3d(fused_object, sensor_object, ref_pos, range);
-  ADEBUG << "ComputeLidarLidar distance: " << distance;
+  ADEBUG << "计算lidar和lidar的距离 ComputeLidarLidar distance: " << distance;
   return distance;
 }
 
@@ -718,6 +723,8 @@ double TrackObjectDistance::ComputeRadarCameraSimilarity(
 
 // @brief: compute polygon distance between fused object and sensor object
 // @return 3d distance between fused object and sensor object
+// 求 track 和 sensor 之间的距离时，并不是直接求距离。 
+// 需要计算 track 在 sensor obj 同样时间戳下的距离,有一个航迹推断的过程，上图红线圈了出来。 其实也就是我在文章前面部分讲到的
 float TrackObjectDistance::ComputePolygonDistance3d(
     const SensorObjectConstPtr& fused_object,
     const SensorObjectPtr& sensor_object, const Eigen::Vector3d& ref_pos,
@@ -732,6 +739,7 @@ float TrackObjectDistance::ComputePolygonDistance3d(
   if (!QueryPolygonDCenter(obj_s, ref_pos, range, &sensor_poly_center)) {
     return (std::numeric_limits<float>::max());
   }
+  // 需要计算 track 在 sensor obj 同样时间戳下的距离,有一个航迹推断的过程
   double fusion_timestamp = fused_object->GetTimestamp();
   double sensor_timestamp = sensor_object->GetTimestamp();
   double time_diff = sensor_timestamp - fusion_timestamp;

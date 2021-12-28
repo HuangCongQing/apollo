@@ -52,6 +52,7 @@ void Track::Reset() {
   toic_prob_ = 0.0;
 }
 
+// 得到三种传感器的object
 SensorObjectConstPtr Track::GetSensorObject(
     const std::string& sensor_id) const {
   auto lidar_it = lidar_objects_.find(sensor_id);
