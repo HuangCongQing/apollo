@@ -58,6 +58,7 @@ bool PbfTracker::InitParams() {
     return false;
   }
 
+  // modules/perception/proto/pbf_tracker_config.proto
   AINFO << "Load PbfTrackerConfig: " << params.type_fusion_method() << ","
         << params.motion_fusion_method() << "," << params.shape_fusion_method()
         << "," << params.existence_fusion_method();
@@ -78,7 +79,7 @@ bool PbfTracker::InitMethods() {
   }
 
   if (s_motion_fusion_method_ == "KalmanMotionFusion") {
-    motion_fusion_.reset(new KalmanMotionFusion(track_));
+    motion_fusion_.reset(new KalmanMotionFusion(track_)); // class类
   } else {
     AERROR << "Unknown motion fusion : " << s_motion_fusion_method_;
     return false;
@@ -110,6 +111,10 @@ bool PbfTracker::Init(TrackPtr track, SensorObjectPtr measurement) {
   return true;
 }
 
+// 观测更新tracker
+// tracker更新的函数中会更新四个部分，existence、motion、shape、type和tracker的信息
+// 主要是DS theory和Kalman更新tracker的属性
+// 前四个fusion的配置参数在modules/perception/proto/pbf_tracker_config.proto，就是init中的默认值。
 void PbfTracker::UpdateWithMeasurement(const TrackerOptions& options,
                                        const SensorObjectPtr measurement,
                                        double target_timestamp) {
@@ -117,14 +122,28 @@ void PbfTracker::UpdateWithMeasurement(const TrackerOptions& options,
   ADEBUG << "fusion_updating..." << track_->GetTrackId() << " with "
          << sensor_id << "..." << measurement->GetBaseObject()->track_id << "@"
          << FORMAT_TIMESTAMP(measurement->GetTimestamp());
+  // options.match_distance = 0
+  // DstExistenceFusion
+  // 证据推理（DS theory）更新tracker的存在性
   existence_fusion_->UpdateWithMeasurement(measurement, target_timestamp,
                                            options.match_distance);
+  
+  // * KalmanMotionFusion!!!!!
+  // 鲁棒卡尔曼滤波更新tracker的运动属性 
   motion_fusion_->UpdateWithMeasurement(measurement, target_timestamp);
+
+  // PbfShapeFusion
+  // 更新tracker的形状
   shape_fusion_->UpdateWithMeasurement(measurement, target_timestamp);
+
+  // * DstTypeFusion!!!!!
+  // 证据推理（DS theory）更新tracker的属性
   type_fusion_->UpdateWithMeasurement(measurement, target_timestamp);
+
   track_->UpdateWithSensorObject(measurement);
 }
 
+// 同上UpdateAssignedTracks一样，对没有匹配到观测的tracker，更新同样的参数
 void PbfTracker::UpdateWithoutMeasurement(const TrackerOptions& options,
                                           const std::string& sensor_id,
                                           double measurement_timestamp,

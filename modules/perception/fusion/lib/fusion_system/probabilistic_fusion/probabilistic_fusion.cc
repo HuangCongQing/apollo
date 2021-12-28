@@ -199,15 +199,14 @@ bool ProbabilisticFusion::IsPublishSensor(
   // }
 }
 
-// 单帧融合的详细细节：主要是观测和航迹的关联匹配，航迹更新
-// 1. FuseFrame
-// 2. FuseForegroundTrack
-// 3. matcher_->Associate
-// 4. UpdateAssignedTracks
-// 5. UpdateUnassignedTracks
-// 6. CreateNewTracks
-// 7. FusebackgroundTrack
-// 8. RemoveLostTrack
+// FuseFrame单帧融合的详细细节：主要是观测和航迹的关联匹配，航迹更新
+// 6.1 FuseForegroundTrack函数
+// 6.1.1 HMTrackersObjectsAssociation::Associate函数
+// 6.1.2 UpdateAssignedTracks
+// 6.1.3 UpdateUnassignedTracks
+// 6.1.4 CreateNewTracks
+// 6.2 FusebackgroundTrack函数
+// 6.3 RemoveLostTrack函数
 void ProbabilisticFusion::FuseFrame(const SensorFramePtr& frame) {
   AINFO << "Fusing frame: " << frame->GetSensorId()
         << ", foreground_object_number: "
@@ -223,7 +222,7 @@ void ProbabilisticFusion::FuseFrame(const SensorFramePtr& frame) {
   this->RemoveLostTrack();
 }
 
-// 01 融合前景
+// 01 融合前景========
 void ProbabilisticFusion::FuseForegroundTrack(const SensorFramePtr& frame) {
   PERF_BLOCK_START();
   std::string indicator = "fusion_" + frame->GetSensorId();
@@ -231,7 +230,7 @@ void ProbabilisticFusion::FuseForegroundTrack(const SensorFramePtr& frame) {
   // 1.1关联匹配--HMTrackersObjectsAssociation 
   // modules/perception/fusion/lib/data_association/hm_data_association/hm_tracks_objects_match.cc
   AssociationOptions options;
-  AssociationResult association_result;
+  AssociationResult association_result; // 得到association结果
   matcher_->Associate(options, frame, scenes_, &association_result);
   PERF_BLOCK_END_WITH_INDICATOR(indicator, "association");
 
@@ -255,6 +254,7 @@ void ProbabilisticFusion::FuseForegroundTrack(const SensorFramePtr& frame) {
 }
 
 // 1.2更新匹配的航迹
+// 匹配上的结果做更新，使用观测更新tracker，tracker类型是pbf_tracker，
 void ProbabilisticFusion::UpdateAssignedTracks(
     const SensorFramePtr& frame,
     const std::vector<TrackMeasurmentPair>& assignments) {
@@ -267,6 +267,7 @@ void ProbabilisticFusion::UpdateAssignedTracks(
   for (size_t i = 0; i < assignments.size(); ++i) {
     size_t track_ind = assignments[i].first;
     size_t obj_ind = assignments[i].second;
+    // pbf_tracker,观测更新tracker-->data_fusion/tracker/pbf_tracker/pbf_tracker.cc
     trackers_[track_ind]->UpdateWithMeasurement(
         options, frame->GetForegroundObjects()[obj_ind], frame->GetTimestamp());
   }
@@ -286,12 +287,13 @@ void ProbabilisticFusion::UpdateUnassignedTracks(
   std::string sensor_id = frame->GetSensorId();
   for (size_t i = 0; i < unassigned_track_inds.size(); ++i) {
     size_t track_ind = unassigned_track_inds[i];
-    trackers_[track_ind]->UpdateWithoutMeasurement(
+    trackers_[track_ind]->UpdateWithoutMeasurement( // data_fusion/tracker/pbf_tracker/pbf_tracker.cc
         options, sensor_id, frame->GetTimestamp(), frame->GetTimestamp());
   }
 }
 
-// 1.4未匹配上的量测新建航迹
+// 1.4未匹配上的量测新建航迹tracker
+// 对没有匹配到tracker的观测object，新建航迹tracker，主要是最后的两个Init函数。可以详细看下Track和BaseTracker两个类。
 void ProbabilisticFusion::CreateNewTracks(
     const SensorFramePtr& frame,
     const std::vector<size_t>& unassigned_obj_inds) {
@@ -299,6 +301,7 @@ void ProbabilisticFusion::CreateNewTracks(
     size_t obj_ind = unassigned_obj_inds[i];
 
     bool prohibition_sensor_flag = false;
+    // 泛型，radar_front不新建航迹
     std::for_each(params_.prohibition_sensors.begin(),
                   params_.prohibition_sensors.end(),
                   [&](std::string sensor_name) {
@@ -308,24 +311,26 @@ void ProbabilisticFusion::CreateNewTracks(
     if (prohibition_sensor_flag) {
       continue;
     }
+    // 新建track，并初始化,添加到scenes_中
     TrackPtr track = TrackPool::Instance().Get();
-    track->Initialize(frame->GetForegroundObjects()[obj_ind]);
+    track->Initialize(frame->GetForegroundObjects()[obj_ind]); //主要是最后的两个Init函数======================
     scenes_->AddForegroundTrack(track);
 
     ADEBUG << "object id: "
            << frame->GetForegroundObjects()[obj_ind]->GetBaseObject()->track_id
            << ", create new track: " << track->GetTrackId();
 
+    // PbfTracker：新建tracker，track初始化tracker，tracker插入到航迹集合trackers_中 
     if (params_.tracker_method == "PbfTracker") {
       std::shared_ptr<BaseTracker> tracker;
       tracker.reset(new PbfTracker());
-      tracker->Init(track, frame->GetForegroundObjects()[obj_ind]);
+      tracker->Init(track, frame->GetForegroundObjects()[obj_ind]); //主要是最后的两个Init函数======================
       trackers_.emplace_back(tracker);
     }
   }
 }
 
-// 02 融合背景
+// 02 融合背景========
 void ProbabilisticFusion::FusebackgroundTrack(const SensorFramePtr& frame) {
   // 1. association
   size_t track_size = scenes_->GetBackgroundTracks().size();
@@ -382,12 +387,15 @@ void ProbabilisticFusion::FusebackgroundTrack(const SensorFramePtr& frame) {
   }
 }
 
-// 03 删除未更新的航迹
+// 03 删除未更新的航迹========
+// 前景航迹和背景航迹，当该航迹所有匹配的传感器都没有更新过，移除掉该航迹
 void ProbabilisticFusion::RemoveLostTrack() {
   // need to remove tracker at the same time
   size_t foreground_track_count = 0;
   std::vector<TrackPtr>& foreground_tracks = scenes_->GetForegroundTracks();
   for (size_t i = 0; i < foreground_tracks.size(); ++i) {
+    // track里面所有匹配过的传感器是否存在
+    // 不存在就删掉，不能直接erase？
     if (foreground_tracks[i]->IsAlive()) {
       if (i != foreground_track_count) {
         foreground_tracks[foreground_track_count] = foreground_tracks[i];
@@ -500,7 +508,7 @@ void ProbabilisticFusion::CollectObjectsByTrack(
          << obj->velocity_uncertainty(1, 1) << ")";
 }
 
-// 得到SensorMeasurement
+// 得到SensorMeasurement测量信息(附加信息)
 void ProbabilisticFusion::CollectSensorMeasurementFromObject(
     const SensorObjectConstPtr& object,
     base::SensorObjectMeasurement* measurement) {
