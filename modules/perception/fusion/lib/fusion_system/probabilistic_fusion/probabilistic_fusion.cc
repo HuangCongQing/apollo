@@ -265,10 +265,10 @@ void ProbabilisticFusion::UpdateAssignedTracks(
   TrackerOptions options;
   options.match_distance = 0;
   for (size_t i = 0; i < assignments.size(); ++i) {
-    size_t track_ind = assignments[i].first;
-    size_t obj_ind = assignments[i].second;
+    size_t track_ind = assignments[i].first; // ??
+    size_t obj_ind = assignments[i].second; // ??
     // pbf_tracker,观测更新tracker-->data_fusion/tracker/pbf_tracker/pbf_tracker.cc
-    trackers_[track_ind]->UpdateWithMeasurement(
+    trackers_[track_ind]->UpdateWithMeasurement(  // >>>>>>>modules/perception/fusion/lib/data_fusion/tracker/pbf_tracker/pbf_tracker.cc
         options, frame->GetForegroundObjects()[obj_ind], frame->GetTimestamp());
   }
 }

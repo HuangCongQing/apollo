@@ -131,6 +131,7 @@ void KalmanMotionFusion::UpdateWithoutMeasurement(const std::string& sensor_id,
   UpdateMotionState();
 }
 
+// 卡尔曼滤波融合KalmanMotionFusion!!!!!=========================================================main主函数
 void KalmanMotionFusion::UpdateWithMeasurement(
     const SensorObjectConstPtr& measurement, double target_timestamp) {
   fused_anchor_point_ =
@@ -358,6 +359,7 @@ Eigen::VectorXd KalmanMotionFusion::ComputeAccelerationMeasurement(
     const base::SensorType& sensor_type, const Eigen::Vector3d& velocity,
     const double& timestamp) {
   Eigen::Vector3d acceleration_measurement = Eigen::Vector3d::Zero();
+  // 对camera目标，直接使用卡尔曼滤波一步预测后的加速度
   if (common::SensorManager::Instance()->IsCamera(sensor_type)) {
     acceleration_measurement(0) = kalman_filter_.GetStates()(4);
     acceleration_measurement(1) = kalman_filter_.GetStates()(5);

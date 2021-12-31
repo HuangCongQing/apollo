@@ -42,6 +42,7 @@ class PbfTracker : public BaseTracker {
 
   bool Init(TrackPtr track, SensorObjectPtr measurement) override;
 
+  // 观测更新tracker
   void UpdateWithMeasurement(const TrackerOptions& options,
                              const SensorObjectPtr measurement,
                              double target_timestamp) override;
