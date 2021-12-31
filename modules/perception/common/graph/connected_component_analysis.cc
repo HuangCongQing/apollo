@@ -19,6 +19,7 @@ namespace apollo {
 namespace perception {
 namespace common {
 
+// 联通子图分析
 void ConnectedComponentAnalysis(const std::vector<std::vector<int>>& graph,
                                 std::vector<std::vector<int>>* components) {
   if (components == nullptr) {

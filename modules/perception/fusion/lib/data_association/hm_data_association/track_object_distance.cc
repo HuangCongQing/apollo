@@ -299,7 +299,7 @@ bool TrackObjectDistance::LidarCameraCenterDistanceExceedDynamicThreshold(
   return false;
 }
 
-// @brief: 计算距离 compute the distance between input fused track and sensor object================main
+// @brief: 计算距离 compute the distance between input fused track and sensor object================================================main
 // @return track object distance
 float TrackObjectDistance::Compute(const TrackPtr& fused_track,
                                    const SensorObjectPtr& sensor_object,
@@ -316,14 +316,15 @@ float TrackObjectDistance::Compute(const TrackPtr& fused_track,
   }
   float distance = (std::numeric_limits<float>::max)();
   float min_distance = (std::numeric_limits<float>::max)();
+  // fused_track是哪个传感器
   SensorObjectConstPtr lidar_object = fused_track->GetLatestLidarObject();
   SensorObjectConstPtr radar_object = fused_track->GetLatestRadarObject();
   SensorObjectConstPtr camera_object = fused_track->GetLatestCameraObject();
-  // 如果是lidar
+  // 1 如果sensor是lidar
   if (IsLidar(sensor_object)) {
     if (lidar_object != nullptr) {
       // 如果两个 Lidar 对象的中心距离大于 10 米，那么它们的距离就被重置为 max，也就是一个最大数，表示不是一个对象。
-      distance = ComputeLidarLidar(lidar_object, sensor_object, *ref_point);
+      distance = ComputeLidarLidar(lidar_object, sensor_object, *ref_point); //
       min_distance = std::min(distance, min_distance);
     }
     if (radar_object != nullptr) {
@@ -337,7 +338,7 @@ float TrackObjectDistance::Compute(const TrackPtr& fused_track,
                                     is_lidar_track_id_consistent);
       min_distance = std::min(distance, min_distance);
     }
-    // 如果是radar
+    // 2 如果是radar
   } else if (IsRadar(sensor_object)) {
     if (lidar_object != nullptr) {
       distance = ComputeLidarRadar(lidar_object, sensor_object, *ref_point);
@@ -351,6 +352,7 @@ float TrackObjectDistance::Compute(const TrackPtr& fused_track,
       distance = ComputeRadarCamera(sensor_object, camera_object);
       min_distance = std::min(distance, min_distance);
     }
+    // 3 如果是camera
   } else if (IsCamera(sensor_object)) {
     if (lidar_object != nullptr) {
       bool is_camera_track_id_consistent =
@@ -363,12 +365,14 @@ float TrackObjectDistance::Compute(const TrackPtr& fused_track,
   } else {
     AERROR << "fused sensor type is not support";
   }
-  return min_distance;
+  return min_distance; // 返回最小距离
 }
 
 // @brief: compute the distance between velodyne64 observation and
 // velodyne64 observation
 // @return the distance of velodyne64 vs. velodyne64
+// 1. 如果两个 Lidar 对象的中心距离大于 10 米，那么它们的距离就被重置为 max，也就是一个最大数，表示不是一个对象。
+// 2. 如果在 10 米范围内，那就调用 ComputePolygonDistance3d（）方法。
 float TrackObjectDistance::ComputeLidarLidar(
     const SensorObjectConstPtr& fused_object,
     const SensorObjectPtr& sensor_object, const Eigen::Vector3d& ref_pos,
@@ -442,16 +446,18 @@ float TrackObjectDistance::ComputeRadarRadar(
 // @brief: compute the distance between lidar observation and
 // camera observation
 // @return distance of lidar vs. camera
+// 计算 Lidar 目标和 Camera 目标的距离。==========================================
 float TrackObjectDistance::ComputeLidarCamera(
     const SensorObjectConstPtr& lidar, const SensorObjectConstPtr& camera,
     const bool measurement_is_lidar, const bool is_track_id_consistent) {
+  // 判断id是否一致
   if (!is_track_id_consistent) {
     if (LidarCameraCenterDistanceExceedDynamicThreshold(lidar, camera)) {
       return distance_thresh_;
     }
   }
   float distance = distance_thresh_;
-  // 1. get camera intrinsic and pose
+  // 1. get camera intrinsic and pose 获取相机内参
   base::BaseCameraModelPtr camera_model = QueryCameraModel(camera);
   if (camera_model == nullptr) {
     AERROR << "Failed to get camera model for " << camera->GetSensorId();
@@ -488,8 +494,10 @@ float TrackObjectDistance::ComputeLidarCamera(
       AERROR << "Failed to query projection cached object";
       return distance;
     }
+    // 计算相似度！
     double similarity =
         ComputePtsBoxSimilarity(&projection_cache_, cache_object, camera_bbox);
+    // 计算距离
     distance =
         distance_thresh_ * ((1.0f - static_cast<float>(similarity)) /
                             (1.0f - vc_similarity2distance_penalize_thresh_));
@@ -724,7 +732,9 @@ double TrackObjectDistance::ComputeRadarCameraSimilarity(
 // @brief: compute polygon distance between fused object and sensor object
 // @return 3d distance between fused object and sensor object
 // 求 track 和 sensor 之间的距离时，并不是直接求距离。 
-// 需要计算 track 在 sensor obj 同样时间戳下的距离,有一个航迹推断的过程，上图红线圈了出来。 其实也就是我在文章前面部分讲到的
+// 需要计算 track 在 sensor obj 同样时间戳下的距离,有一个航迹推断的过程
+// 举例: 比如 track 是在 0 s 时的位置为 p0，sensor obj 有数据参与融合时是在 1.5s，
+// 那么这个时候 track 的位置为p1= p0 + track 的速度乘以 1.5s，才是当前 track 的位置,而与 sensor obj 进行距离计算是 p1 不是 p0。
 float TrackObjectDistance::ComputePolygonDistance3d(
     const SensorObjectConstPtr& fused_object,
     const SensorObjectPtr& sensor_object, const Eigen::Vector3d& ref_pos,
@@ -742,7 +752,9 @@ float TrackObjectDistance::ComputePolygonDistance3d(
   // 需要计算 track 在 sensor obj 同样时间戳下的距离,有一个航迹推断的过程
   double fusion_timestamp = fused_object->GetTimestamp();
   double sensor_timestamp = sensor_object->GetTimestamp();
-  double time_diff = sensor_timestamp - fusion_timestamp;
+  // 举例: 比如 track 是在 0 s 时的位置为 p0，sensor obj 有数据参与融合时是在 1.5s，
+  // 那么这个时候 track 的位置为p1= p0 + track 的速度乘以 1.5s，才是当前 track 的位置,而与 sensor obj 进行距离计算是 p1 不是 p0。
+  double time_diff = sensor_timestamp - fusion_timestamp; // 1.5s
   fused_poly_center(0) += obj_f->velocity(0) * time_diff;
   fused_poly_center(1) += obj_f->velocity(1) * time_diff;
   float distance =

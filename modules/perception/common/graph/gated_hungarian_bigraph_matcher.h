@@ -25,6 +25,7 @@
 #include "cyber/common/log.h"
 
 #include "modules/perception/common/graph/connected_component_analysis.h"
+// 由HungarianOptimizer类来实现匹配算法，注意类中的关联矩阵由接口更新为最新的关联矩阵，并且为等边矩阵。算最小值，最主要的就是DoMunkres()函数和几个step函数。
 #include "modules/perception/common/graph/hungarian_optimizer.h"
 
 namespace apollo {
@@ -98,6 +99,7 @@ class GatedHungarianMatcher {
       std::vector<std::pair<size_t, size_t>>* local_assignments);
 
   /* Hungarian optimizer */
+  // 
   HungarianOptimizer<T> optimizer_;
 
   /* global costs matrix */
@@ -130,6 +132,9 @@ void GatedHungarianMatcher<T>::Match(
         unassigned_cols);
 }
 
+// 匈牙利匹配=========================================================================================================================main
+// Apollo融合里用的是Munkres算法（匈牙利算法）修改版本
+// 将关联矩阵costs转换成二分图，计算连通子图，对子图计算匈牙利匹配
 template <typename T>
 void GatedHungarianMatcher<T>::Match(
     T cost_thresh, T bound_value, OptimizeFlag opt_flag,
@@ -145,6 +150,7 @@ void GatedHungarianMatcher<T>::Match(
   opt_flag_ = opt_flag; //OPTMIN
   bound_value_ = bound_value; //=100
   assignments_ptr_ = assignments;
+  
   //初始化is_valid_cost_函数，object和tracker的欧氏距离小于4米有效
   MatchInit();
 
@@ -152,7 +158,8 @@ void GatedHungarianMatcher<T>::Match(
   std::vector<std::vector<size_t>> row_components;
   std::vector<std::vector<size_t>> col_components;
 
-  //计算二分图的连通子图，即匈牙利的增广路.row放入对应的col，col放入对应的row
+  //1 计算二分图的连通子图，即匈牙利的增广路.row放入对应的col，col放入对应的row
+  // 计算联通子图 (ComputeConnectedComponents)=================================================================================
   //row/col_components的size都是一样的，
   this->ComputeConnectedComponents(&row_components, &col_components);
   CHECK_EQ(row_components.size(), col_components.size());
@@ -160,15 +167,17 @@ void GatedHungarianMatcher<T>::Match(
   /* compute assignments */
   assignments_ptr_->clear();
   assignments_ptr_->reserve(std::max(rows_num_, cols_num_));
-  //对连通子图分别进行匈牙利匹配 最小距离
+  //2 (对连通子图分别进行)匈牙利匹配 最小距离========================================================================================
+  // KM匹配(GatedHungarianMatcher<T>::OptimizeConnectedComponent)
   for (size_t i = 0; i < row_components.size(); ++i) {
     this->OptimizeConnectedComponent(row_components[i], col_components[i]);
   }
 
-  //生成未分配的
+  //3 生成未匹配的数据(GatedHungarianMatcher<T>::GenerateUnassignedData)========================================================
   this->GenerateUnassignedData(unassigned_rows, unassigned_cols);
 }
 
+// step1: 
 template <typename T>
 void GatedHungarianMatcher<T>::MatchInit() {
   /* get number of rows & cols */
@@ -189,6 +198,7 @@ void GatedHungarianMatcher<T>::MatchInit() {
   ACHECK(!is_valid_cost_(bound_value_));
 }
 
+// step2:计算联通子图 （1 计算二分图的连通子图，即匈牙利的增广路）
 template <typename T>
 void GatedHungarianMatcher<T>::ComputeConnectedComponents(
     std::vector<std::vector<size_t>>* row_components,
@@ -196,6 +206,7 @@ void GatedHungarianMatcher<T>::ComputeConnectedComponents(
   CHECK_NOTNULL(row_components);
   CHECK_NOTNULL(col_components);
 
+  // 1 构建nb_graph
   std::vector<std::vector<int>> nb_graph;
   nb_graph.resize(rows_num_ + cols_num_);
   for (size_t i = 0; i < rows_num_; ++i) {
@@ -208,7 +219,10 @@ void GatedHungarianMatcher<T>::ComputeConnectedComponents(
   }
 
   std::vector<std::vector<int>> components;
-  ConnectedComponentAnalysis(nb_graph, &components);
+  // 2 联通子图分析
+  ConnectedComponentAnalysis(nb_graph, &components); // modules/perception/common/graph/connected_component_analysis.cc
+  
+  // 3 构建row_components / col_components 将子图映射回二分图（航迹和量测）的id号。
   row_components->clear();
   row_components->resize(components.size());
   col_components->clear();
@@ -226,6 +240,7 @@ void GatedHungarianMatcher<T>::ComputeConnectedComponents(
   }
 }
 
+// step3:（2 匈牙利匹配）
 template <typename T>
 void GatedHungarianMatcher<T>::OptimizeConnectedComponent(
     const std::vector<size_t>& row_component,
@@ -248,9 +263,11 @@ void GatedHungarianMatcher<T>::OptimizeConnectedComponent(
   }
 
   /* update local cost matrix */
+  // 1： 更新matrix
   UpdateGatingLocalCostsMat(row_component, col_component);
 
   /* get local assignments */
+  // 2：得到  Maximize  Minimize
   std::vector<std::pair<size_t, size_t>> local_assignments;
   OptimizeAdapter(&local_assignments);
 
@@ -266,6 +283,7 @@ void GatedHungarianMatcher<T>::OptimizeConnectedComponent(
   }
 }
 
+// step4:生成未分配的（3 生成未匹配的数据(GatedHung）
 template <typename T>
 void GatedHungarianMatcher<T>::GenerateUnassignedData(
     std::vector<size_t>* unassigned_rows,
@@ -294,6 +312,7 @@ void GatedHungarianMatcher<T>::GenerateUnassignedData(
   }
 }
 
+// Step3/4-1
 template <typename T>
 void GatedHungarianMatcher<T>::UpdateGatingLocalCostsMat(
     const std::vector<size_t>& row_component,
@@ -313,10 +332,12 @@ void GatedHungarianMatcher<T>::UpdateGatingLocalCostsMat(
   }
 }
 
+// Step3/4-2
 template <typename T>
 void GatedHungarianMatcher<T>::OptimizeAdapter(
     std::vector<std::pair<size_t, size_t>>* local_assignments) {
   CHECK_NOTNULL(local_assignments);
+  // modules/perception/common/graph/hungarian_optimizer.h
   if (opt_flag_ == OptimizeFlag::OPTMAX) {
     optimizer_.Maximize(local_assignments);
   } else {

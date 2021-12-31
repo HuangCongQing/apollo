@@ -137,6 +137,7 @@ class HungarianOptimizer {
   bool FindZero(size_t* zero_row, size_t* zero_col);
 
   /* Run the Munkres algorithm! */
+  // 匈牙利（Kuhn-Munkres）算法=====================================
   void DoMunkres();
 
   void CheckStar();
@@ -144,6 +145,7 @@ class HungarianOptimizer {
   /* Step 1:
    * For each row of the matrix, find the smallest element and subtract it from
    * every element in its row.  Go to Step 2. */
+  // 对于矩阵的每一行，找到最小的元素，该行的每个元素减去它。转到步骤 2。
   void ReduceRows();
 
   /* Step 2:
@@ -255,18 +257,26 @@ void HungarianOptimizer<T>::Maximize(
       costs_(row, col) = max_cost_ - costs_(row, col);
     }
   }
+  // 最小
   Minimize(assignments);
 }
 
 /* Find an assignment which minimizes the overall costs.
  * Return an array of pairs of integers. Each pair (i, j) corresponds to
  * assigning agent i to task j. */
+// 入口函数============================================================================main
 template <typename T>
 void HungarianOptimizer<T>::Minimize(
     std::vector<std::pair<size_t, size_t>>* assignments) {
+  // 1 初始化参数
   OptimizationInit();
+
+  // 2 匈牙利（Kuhn-Munkres）算法（一共五步）=====================================
   DoMunkres();
+
+  // 3 读取star为最终结果（直接读prime不行吗？）
   FindAssignments(assignments);
+  // 
   OptimizationClear();
 }
 
@@ -480,11 +490,12 @@ void HungarianOptimizer<T>::PrintMatrix() {
 }
 
 /* Run the Munkres algorithm */
+// 匈牙利（Kuhn-Munkres）算法=====================================
 template <typename T>
 void HungarianOptimizer<T>::DoMunkres() {
   int max_num_iter = 1000;
   int num_iter = 0;
-  fn_state_ = std::bind(&HungarianOptimizer::ReduceRows, this);
+  fn_state_ = std::bind(&HungarianOptimizer::ReduceRows, this); // ==================================================
   while (fn_state_ != nullptr && num_iter < max_num_iter) {
     fn_state_();
     ++num_iter;
@@ -517,9 +528,10 @@ void HungarianOptimizer<T>::CheckStar() {
   }
 }
 
-/* Step 1:
+/* Step 1:====================================================================================
  * For each row of the matrix, find the smallest element and substract it
  * from every element in its row. Then, go to Step 2. */
+// 对于矩阵的每一行，找到最小的元素，该行的每个元素减去它。转到步骤 2。
 template <typename T>
 void HungarianOptimizer<T>::ReduceRows() {
   for (size_t row = 0; row < matrix_size_; ++row) {
@@ -538,6 +550,8 @@ void HungarianOptimizer<T>::ReduceRows() {
  * Find a zero Z in the matrix. If there is no starred zero in its row
  * or column, star Z. Repeat for every element in the matrix. Then, go to
  * Step3. */
+//   在矩阵中找到一个0(Z)。如果其行或列中没有带star的0，则为Z加上star，有star的0的话就跳过该行或者该列。对矩阵中的每个元素重复此操作。转到步骤 3。
+// 注意：分析显示此方法使用 9.2% 的CPU - 下一个最慢的步骤需要 0.6%。很难找到进一步加速它的方法。
 template <typename T>
 void HungarianOptimizer<T>::StarZeroes() {
   /* since no rows or columns are covered on entry to this step, we use the
@@ -566,6 +580,7 @@ void HungarianOptimizer<T>::StarZeroes() {
  * Cover each column containing a starred zero. If all columns are covered,
  * the starred zeros describe a complete set of unique assignments. In this
  * case, terminate the algorithm. Otherwise, go to Step 4. */
+//   cover包含star0的每一列。如果所有列都被cover，带star的0描述了一组完整的唯一分配。在这种情况下，终止算法。否则，请转到步骤 4。
 template <typename T>
 void HungarianOptimizer<T>::CoverStarredZeroes() {
   size_t num_covered = 0;
@@ -589,6 +604,7 @@ void HungarianOptimizer<T>::CoverStarredZeroes() {
  * row containing this primed zero, go to Step 5. Otherwise, cover this row
  * and uncover the column containing the starred zero. Continue in this manner
  * until there are no uncovered zeros left, then go to Step 6. */
+//   找到一个未cover的0并将其prime。如果包含这个prime0的行中没有star0，则转到步骤 5。否则，cover该行，uncover有star0的列。以这种方式继续，直到没有剩余的0，然后转到步骤 6。
 template <typename T>
 void HungarianOptimizer<T>::PrimeZeroes() {
   // this loop is guaranteed to terminate in at most matrix_size_ iterations,
@@ -631,6 +647,8 @@ void HungarianOptimizer<T>::PrimeZeroes() {
  * unstar each starred zero of the series, star each primed zero of the
  * series, erase all primes and uncover every line in the matrix. Return to
  * Step 3. */
+//   构造一系列交替的prime0和star0。让 Z0 代表在步骤 4 中发现的uncover的prime0。让 Z1 表示 Z0 列中的star0（如果有）。让 Z2 表示 Z1 行中的prime0（总会有一个）。
+// 继续直到该系列在其列中没有star0处终止。取消系列的每个star0，为系列的每个prime0加上star，删除所有prime0并uncover矩阵中的每一行。返回步骤 3。
 template <typename T>
 void HungarianOptimizer<T>::MakeAugmentingPath() {
   bool done = false;
@@ -699,6 +717,7 @@ void HungarianOptimizer<T>::MakeAugmentingPath() {
  * Add the smallest uncovered value in the matrix to every element of each
  * covered row, and subtract it from every element of each uncovered column.
  * Return to Step 4 without altering any stars, primes, or covered lines. */
+//   将矩阵中最小的uncover值添加到每个cover行的每个元素，并从每个uncover列的每个元素中减去它。返回第 4 步。
 template <typename T>
 void HungarianOptimizer<T>::AugmentPath() {
   T minval = FindSmallestUncovered();

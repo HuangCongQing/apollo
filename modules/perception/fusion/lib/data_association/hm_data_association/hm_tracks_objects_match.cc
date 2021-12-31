@@ -31,7 +31,7 @@ double HMTrackersObjectsAssociation::s_match_distance_bound_ = 100.0;
  * consider the ave 2d-to-3d error is 7%, 30m is 15% of 200m, which
  * is 2 times of ave error around 200m. */
 double HMTrackersObjectsAssociation::s_association_center_dist_threshold_ =
-    30.0;
+    30.0; // 因为 2D 到 3D 转换误差太大，所以数据关联的时候，阈值设置的很宽松，在这里是 30m
 
 template <typename T>
 void extract_vector(const std::vector<T>& vec,
@@ -94,7 +94,7 @@ bool HMTrackersObjectsAssociation::Associate(
                                 association_result->unassigned_tracks,
                                 association_result->unassigned_measurements,
                                 &association_mat);
-
+  // 下面处理什么？？？？？
   int num_track = static_cast<int>(fusion_tracks.size());
   int num_measurement = static_cast<int>(sensor_objects.size());
   // 初始化置0,航迹track到观测object的距离,观测到航迹的距离
@@ -121,6 +121,7 @@ bool HMTrackersObjectsAssociation::Associate(
     measurement_ind_g2l[association_result->unassigned_measurements[i]] =
         static_cast<int>(i);
   }
+  // 
   std::vector<size_t> track_ind_l2g = association_result->unassigned_tracks;
 
   // 校验，未分配航迹或未分配观测为空，则结束
@@ -238,11 +239,12 @@ bool HMTrackersObjectsAssociation::MinimizeAssignment(
 
   //阈值4,边界100，计算连通子图，每个连通子图进行匈牙利匹配
   // 其中最主要的是match函数=====================================modules/perception/common/graph/gated_hungarian_bigraph_matcher.h
+  // Apollo融合里用的是Munkres算法（匈牙利算法）修改版本
   optimizer_.Match(static_cast<float>(s_match_distance_thresh_),
                    static_cast<float>(s_match_distance_bound_), opt_flag,
                    &local_assignments, &local_unassigned_tracks,
                    &local_unassigned_measurements);
-  //在之前Idassign后，补充现在匹配上的航迹和观测的index
+  //1 匹配上：在之前Idassign后，补充现在匹配上的航迹和观测的index
   for (auto assign : local_assignments) {
     assignments->push_back(std::make_pair(track_ind_l2g[assign.first],
                                           measurement_ind_l2g[assign.second]));
@@ -250,17 +252,18 @@ bool HMTrackersObjectsAssociation::MinimizeAssignment(
   // 清除之前未匹配的结果，做了关联计算之后要重新生成新的未匹配结果
   unassigned_tracks->clear();
   unassigned_measurements->clear();
-  //未匹配上的track_index
+  //2 未匹配上的track_index
   for (auto un_track : local_unassigned_tracks) {
     unassigned_tracks->push_back(track_ind_l2g[un_track]);
   }
-  //未匹配上的观测object_index
+  //3 未匹配上的观测object_index
   for (auto un_mea : local_unassigned_measurements) {
     unassigned_measurements->push_back(measurement_ind_l2g[un_mea]);
   }
   return true;
 }
 
+// 最后一步6.保存航迹track和观测meas的关联值（最小距离）
 void HMTrackersObjectsAssociation::ComputeDistance(
     const std::vector<TrackPtr>& fusion_tracks,
     const std::vector<SensorObjectPtr>& sensor_objects,
@@ -370,16 +373,17 @@ void HMTrackersObjectsAssociation::ComputeAssociationDistanceMat(
       //中心点距离<30米 代码注释中讲到，因为 2D 到 3D 转换误差太大，所以数据关联的时候，阈值设置的很宽松，在这里是 30m，为了防止 camera 检测到的目标和 Lidar 的目标匹配不上。
       // 这一行解释其实也透露出了在实际数据关联时常见的无奈
       if (center_dist < s_association_center_dist_threshold_) { // 30
-        //计算欧式距离
+        //step1: 计算欧式距离
         distance =
-            track_object_distance_.Compute(fusion_track, sensor_object, opt); // 重要!important========================
+            track_object_distance_.Compute(fusion_track, sensor_object, opt); // 重要!important====================================================
       } else {
-        ADEBUG << "center_distance " << center_dist
+        ADEBUG << "中心距离center_distance " << center_dist
                << " exceeds slack threshold "
                << s_association_center_dist_threshold_
                << ", track_id: " << fusion_track->GetTrackId()
                << ", obs_id: " << sensor_object->GetBaseObject()->track_id;
       }
+      //step2: 关联距离矩阵association_mat[num_track,num_meas]
       (*association_mat)[i][j] = distance;
       ADEBUG << "track_id: " << fusion_track->GetTrackId()
              << ", obs_id: " << sensor_object->GetBaseObject()->track_id
@@ -434,17 +438,23 @@ void HMTrackersObjectsAssociation::IdAssign(
     }
     // 匹配track中obj,[obj_id,track_index]存入到map中
     sensor_id_2_track_ind[obj->GetBaseObject()->track_id] = static_cast<int>(i); // 
+    // 举例: Sensorid 2 track ind
+    // (trackId, track1/2/3)
+    // (3,1)
+    // (7,2),
+    // (12,3)
   }
 
   //保留哪些Index之前是匹配上的  track和object匹配过
   std::vector<bool> fusion_used(num_track, false);
   std::vector<bool> sensor_used(num_obj, false);
   //2.遍历objects循环，在map中寻找当前帧的obj_id，找到了就相互配对，对应位置置true===================
+  // 提取一个 obj 的 trackid，然后去 fusion_tracks中找相同的 trackid 的 track
   for (size_t i = 0; i < num_obj; i++) {
     //object的id
-    int track_id = sensor_objects[i]->GetBaseObject()->track_id;
+    int track_id = sensor_objects[i]->GetBaseObject()->track_id; // obj 的 trackid
     //找该object对应的map索引
-    auto it = sensor_id_2_track_ind.find(track_id);
+    auto it = sensor_id_2_track_ind.find(track_id); // ???track的下标
 
     // 非post且传感器是窄视角（长焦）相机，不做id_assign。
     // associate函数中，post为false
@@ -459,10 +469,10 @@ void HMTrackersObjectsAssociation::IdAssign(
 
     //该object在之前trackers中,相应的位置置true,并进行匹配到相应tracker上,用pair保存
     // 找到了就给 sensor_used 和 fusion_used 赋值
-    if (it != sensor_id_2_track_ind.end()) {
+    if (it != sensor_id_2_track_ind.end()) { // 如果it没在里面就加入(防止重复加入)
       sensor_used[i] = true;
       fusion_used[it->second] = true;
-      assignments->push_back(std::make_pair(it->second, i));
+      assignments->push_back(std::make_pair(it->second, i)); // 加入assignments
     }
   }
   //3.没有ID匹配到的tracker保存==============================================================
