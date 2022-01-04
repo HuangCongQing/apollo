@@ -114,6 +114,7 @@ bool DstTypeFusion::Init() {
   return DstManager::Instance()->IsAppAdded(name_);
 }
 
+// 证据推理（DS theory）更新tracker的属性============================================================main
 void DstTypeFusion::UpdateWithMeasurement(const SensorObjectPtr measurement,
                                           double target_timestamp) {
   Dst measurement_dst(name_);

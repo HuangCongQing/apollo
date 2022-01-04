@@ -143,6 +143,7 @@ void KalmanMotionFusion::UpdateWithMeasurement(
   velo_uncertainty_ = measurement->GetBaseObject()->velocity_uncertainty;
   acc_uncertainty_ = measurement->GetBaseObject()->acceleration_uncertainty;
 
+  // 时间差
   double time_diff = measurement->GetTimestamp() -
                      track_ref_->GetFusedObject()->GetTimestamp();
   bool is_lidar = IsLidar(measurement);
@@ -154,7 +155,7 @@ void KalmanMotionFusion::UpdateWithMeasurement(
   // Motion fusion
   if (is_lidar || is_radar || is_camera) {
     if (filter_init_) {
-      MotionFusionWithMeasurement(measurement, time_diff);
+      MotionFusionWithMeasurement(measurement, time_diff); // 入口=====================
     } else {
       filter_init_ = InitFilter(measurement);
     }
@@ -228,6 +229,7 @@ void KalmanMotionFusion::MotionFusionWithoutMeasurement(
   kalman_filter_.Predict(transform_matrix, env_uncertainty);
 }
 
+// 具体实现===============================
 void KalmanMotionFusion::MotionFusionWithMeasurement(
     const SensorObjectConstPtr& measurement, double time_diff) {
   // we use kalman filter to update our tracker.
@@ -256,12 +258,15 @@ void KalmanMotionFusion::MotionFusionWithMeasurement(
   env_uncertainty.setIdentity(6, 6);
   env_uncertainty *= 0.5;
 
+  // 3.1 预测(modules/perception/fusion/common/kalman_filter.cc)
   kalman_filter_.Predict(transform_matrix, env_uncertainty);
 
+  // 3.2 计算加速度
+  // 对camera目标，直接使用卡尔曼滤波一步预测后的加速度。应该是相机目标的加速度测的不准，不信赖其加速度？
   Eigen::Vector3d measured_acceleration = Eigen::Vector3d::Zero();
   measured_acceleration = ComputeAccelerationMeasurement(
       measurement->GetSensorType(),
-      measurement->GetBaseObject()->velocity.cast<double>(),
+      measurement->GetBaseObject()->velocity.cast<double>(), // 速度
       measurement->GetTimestamp());
 
   Eigen::VectorXd observation;
@@ -273,6 +278,8 @@ void KalmanMotionFusion::MotionFusionWithMeasurement(
   observation(4) = measured_acceleration(0);
   observation(5) = measured_acceleration(1);
 
+  // 3.3 R矩阵初始化
+  // 使用观测的距离和速度方差更新
   Eigen::MatrixXd r_matrix;
   r_matrix.setIdentity(6, 6);
   r_matrix.topLeftCorner(2, 2) = measurement->GetBaseObject()
@@ -291,11 +298,15 @@ void KalmanMotionFusion::MotionFusionWithMeasurement(
          << r_matrix(3, 2) << "," << r_matrix(3, 3) << ")";
 
   // Compute pseudo measurement
+  // 3.4 修正观测值
+  // Apollo特有的，就是根据历史的radar和lidar观测来修正当前帧的观测值，减少过大的突变，
   Eigen::Vector4d temp_observation = observation.head(4);
   Eigen::Vector4d pseudo_measurement =
-      ComputePseudoMeasurement(temp_observation, measurement->GetSensorType());
+      ComputePseudoMeasurement(temp_observation, measurement->GetSensorType()); // 具体实现
   observation.head(4) = pseudo_measurement;
 
+  // 3.5 保存修正后的观测数据
+  // 速度收敛则储存到历史观测数据，用于计算加速度
   if (measurement->GetBaseObject()->velocity_converged) {
     UpdateSensorHistory(measurement->GetSensorType(),
                         measurement->GetBaseObject()->velocity.cast<double>(),
@@ -303,6 +314,8 @@ void KalmanMotionFusion::MotionFusionWithMeasurement(
   }
 
   // Adapt noise level to rewarding status
+  // 3.6 调整R矩阵
+  // 针对是否lidar观测和是否收敛，调整R矩阵
   RewardRMatrix(measurement->GetSensorType(),
                 measurement->GetBaseObject()->velocity_converged, &r_matrix);
 
@@ -314,8 +327,12 @@ void KalmanMotionFusion::MotionFusionWithMeasurement(
          << "," << r_matrix(2, 2) << "," << r_matrix(2, 3) << ","
          << r_matrix(3, 2) << "," << r_matrix(3, 3) << ")";
 
+  // 3.7 解协方差
+  // 认为速度和位置互不影响，状态协方差矩阵P（6*6）的(2，0) (2,1) (3,0) (3,1)位置设为0
   kalman_filter_.DeCorrelation(2, 0, 2, 2);
+  // 3.8 卡尔曼更新
   kalman_filter_.Correct(observation, r_matrix);
+  // 3.9 修正更新后的加速度和速度
   kalman_filter_.CorrectionBreakdown();
 
   ADEBUG << "fusion_filter_belief@(" << std::setprecision(10)
@@ -355,6 +372,7 @@ void KalmanMotionFusion::UpdateMotionState() {
   obj->acceleration_uncertainty = acc_uncertainty_;
 }
 
+// 3.2 计算加速度
 Eigen::VectorXd KalmanMotionFusion::ComputeAccelerationMeasurement(
     const base::SensorType& sensor_type, const Eigen::Vector3d& velocity,
     const double& timestamp) {
@@ -377,12 +395,27 @@ Eigen::VectorXd KalmanMotionFusion::ComputeAccelerationMeasurement(
   return acceleration_measurement;
 }
 
+// 3.6 调整R矩阵
+// 针对是否lidar观测和是否收敛，调整R矩阵
 void KalmanMotionFusion::RewardRMatrix(const base::SensorType& sensor_type,
                                        const bool& converged,
                                        Eigen::MatrixXd* r_matrix) {
   common::SensorManager* sensor_manager = common::SensorManager::Instance();
   const float converged_scale = 0.01f;
   const float unconverged_scale = 1000.0f;
+  // R=6*6矩阵
+  // if 观测是lidar：
+  //     if 速度收敛：
+  //         设置协方差：位置和速度0.01，加速度1
+  //     else：
+  //         设置协方差：位置0.01，速度1000，加速度1
+
+  // else if 观测是radar或者camera：
+  //     设置协方差：位置和速度乘以2
+      
+  //     if VELODYNE_64的历史观测长度 > 0:
+  //         速度协方差=1000
+  // 加速度协方差×0.5
   if (sensor_manager->IsLidar(sensor_type)) {
     if (converged) {
       r_matrix->setIdentity();
@@ -404,8 +437,9 @@ void KalmanMotionFusion::RewardRMatrix(const base::SensorType& sensor_type,
   }
   r_matrix->block<2, 2>(4, 4) *= 0.5;
 }
-
-Eigen::Vector4d KalmanMotionFusion::ComputePseudoMeasurement(
+// 3.4 修正观测值
+// Apollo特有的，就是根据历史的radar和lidar观测来修正当前帧的观测值，减少过大的突变，
+Eigen::Vector4d KalmanMotionFusion::  ComputePseudoMeasurement(
     const Eigen::Vector4d& measurement, const base::SensorType& sensor_type) {
   // What is a pseudo-lidar estimation? if given lidar estimation could trace
   // a good radar estimation within a short window, then project radar
@@ -414,12 +448,15 @@ Eigen::Vector4d KalmanMotionFusion::ComputePseudoMeasurement(
   // project it on its last good lidar estimation within a short window.
   // otherwise, use current belief
   common::SensorManager* sensor_manager = common::SensorManager::Instance();
+  // (1)lidar观测修正
   if (sensor_manager->IsLidar(sensor_type)) {
     return ComputePseudoLidarMeasurement(measurement);
   }
+  // (2)camera观测修正
   if (sensor_manager->IsRadar(sensor_type)) {
     return ComputePseudoRadarMeasurement(measurement);
   }
+  // (3)radar观测修正
   if (sensor_manager->IsCamera(sensor_type)) {
     return ComputePseudoCameraMeasurement(measurement);
   }

@@ -83,6 +83,7 @@ bool DstExistenceFusion::Init() {
          DstManager::Instance()->IsAppAdded(toic_name_);
 }
 
+// 证据推理（DS theory）更新tracker的存在性=========================================main
 void DstExistenceFusion::UpdateWithMeasurement(
     const SensorObjectPtr measurement, double target_timestamp,
     double match_dist) {

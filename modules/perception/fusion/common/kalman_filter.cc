@@ -59,6 +59,7 @@ bool KalmanFilter::Init(const Eigen::VectorXd &initial_belief_states,
   return true;
 }
 
+// 3.1 预测
 bool KalmanFilter::Predict(const Eigen::MatrixXd &transform_matrix,
                            const Eigen::MatrixXd &env_uncertainty_matrix) {
   if (!init_) {
@@ -83,13 +84,16 @@ bool KalmanFilter::Predict(const Eigen::MatrixXd &transform_matrix,
   }
   transform_matrix_ = transform_matrix;
   env_uncertainty_ = env_uncertainty_matrix;
+  // X_ = F * X
   global_states_ = transform_matrix_ * global_states_;
+  // P_ = F * P * F_t + Q
   global_uncertainty_ =
       transform_matrix_ * global_uncertainty_ * transform_matrix_.transpose() +
       env_uncertainty_;
   return true;
 }
 
+// 3.8 卡尔曼更新
 bool KalmanFilter::Correct(const Eigen::VectorXd &cur_observation,
                            const Eigen::MatrixXd &cur_observation_uncertainty) {
   if (!init_) {
@@ -175,6 +179,7 @@ bool KalmanFilter::SetValueBreakdownThresh(const std::vector<bool> &break_down,
   value_break_down_threshold_ = threshold;
   return true;
 }
+// 3.9 修正更新后的加速度和速度
 void KalmanFilter::CorrectionBreakdown() {
   Eigen::VectorXd states_gain = global_states_ - prior_global_states_;
   Eigen::VectorXd breakdown_diff = states_gain.cwiseProduct(gain_break_down_);
