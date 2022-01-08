@@ -67,14 +67,17 @@ bool HMMatcher::Init() {
 // @params[OUT] unassigned_tracks: unmatched tracks
 // @params[OUT] unassigned_objects: unmatched objects
 // @return nothing
+ // 关联匹配main======================================================
 bool HMMatcher::Match(const std::vector<RadarTrackPtr> &radar_tracks,
                       const base::Frame &radar_frame,
                       const TrackObjectMatcherOptions &options,
                       std::vector<TrackObjectPair> *assignments,
                       std::vector<size_t> *unassigned_tracks,
                       std::vector<size_t> *unassigned_objects) {
+  // ID匹配，相同id且距离小于2.5直接匹配上
   IDMatch(radar_tracks, radar_frame, assignments, unassigned_tracks,
           unassigned_objects);
+  // 计算关联值，匈牙利匹配
   TrackObjectPropertyMatch(radar_tracks, radar_frame, assignments,
                            unassigned_tracks, unassigned_objects);
   return true;
@@ -92,6 +95,7 @@ bool HMMatcher::RefinedTrack(const base::ObjectPtr &track_object,
   return dist < BaseMatcher::GetMaxMatchDistance();
 }
 
+// 计算关联值，匈牙利匹配具体实现
 void HMMatcher::TrackObjectPropertyMatch(
     const std::vector<RadarTrackPtr> &radar_tracks,
     const base::Frame &radar_frame, std::vector<TrackObjectPair> *assignments,
@@ -104,6 +108,8 @@ void HMMatcher::TrackObjectPropertyMatch(
   for (size_t i = 0; i < association_mat.size(); ++i) {
     association_mat[i].resize(unassigned_objects->size(), 0);
   }
+
+  // 计算关联矩阵==================================================
   ComputeAssociationMat(radar_tracks, radar_frame, *unassigned_tracks,
                         *unassigned_objects, &association_mat);
 
@@ -119,6 +125,7 @@ void HMMatcher::TrackObjectPropertyMatch(
   std::vector<TrackObjectPair> property_assignments;
   std::vector<size_t> property_unassigned_tracks;
   std::vector<size_t> property_unassigned_objects;
+  // 匈牙利匹配，和fusion一样=========================================
   hungarian_matcher_.Match(
       BaseMatcher::GetMaxMatchDistance(), BaseMatcher::GetBoundMatchDistance(),
       common::GatedHungarianMatcher<double>::OptimizeFlag::OPTMIN,
@@ -143,6 +150,7 @@ void HMMatcher::TrackObjectPropertyMatch(
   *unassigned_tracks = temp_unassigned_tracks;
   *unassigned_objects = temp_unassigned_objects;
 }
+// 计算关联矩阵实现
 void HMMatcher::ComputeAssociationMat(
     const std::vector<RadarTrackPtr> &radar_tracks,
     const base::Frame &radar_frame,
@@ -158,10 +166,13 @@ void HMMatcher::ComputeAssociationMat(
           radar_frame.objects[unassigned_objects[j]];
       double track_timestamp =
           radar_tracks[unassigned_tracks[i]]->GetTimestamp();
+      // 计算航迹往前预测和观测的中心点距离
       double distance_forward = DistanceBetweenObs(
           track_object, track_timestamp, frame_object, frame_timestamp);
+      // 计算观测往后预测和航迹的中心点距离
       double distance_backward = DistanceBetweenObs(
           frame_object, frame_timestamp, track_object, track_timestamp);
+      // 取平均
       association_mat->at(i).at(j) =
           0.5 * distance_forward + 0.5 * distance_backward;
     }

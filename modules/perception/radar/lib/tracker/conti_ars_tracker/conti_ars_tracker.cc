@@ -19,7 +19,7 @@ namespace apollo {
 namespace perception {
 namespace radar {
 
-double ContiArsTracker::s_tracking_time_win_ = 0.06;
+double ContiArsTracker::s_tracking_time_win_ = 0.06; // // 超过0.06秒设置为死亡
 ContiArsTracker::ContiArsTracker()
     : BaseTracker(), matcher_(nullptr), track_manager_(nullptr) {
   name_ = "ContiArsTracker";
@@ -85,11 +85,12 @@ bool ContiArsTracker::Init() {
   return state;
 }
 
+// main主函数===========================================================
 bool ContiArsTracker::Track(const base::Frame &detected_frame,
                             const TrackerOptions &options,
                             base::FramePtr tracked_frame) {
-  TrackObjects(detected_frame);
-  CollectTrackedFrame(tracked_frame);
+  TrackObjects(detected_frame);  // step1
+  CollectTrackedFrame(tracked_frame); // step2
   return true;
 }
 
@@ -99,19 +100,22 @@ void ContiArsTracker::TrackObjects(const base::Frame &radar_frame) {
   std::vector<size_t> unassigned_objects;
   TrackObjectMatcherOptions matcher_options;
   const auto &radar_tracks = track_manager_->GetTracks();
+  // 1 关联匹配>>modules/perception/radar/lib/tracker/matcher/hm_matcher.cc
   matcher_->Match(radar_tracks, radar_frame, matcher_options, &assignments,
                   &unassigned_tracks, &unassigned_objects);
-  UpdateAssignedTracks(radar_frame, assignments);
-  UpdateUnassignedTracks(radar_frame, unassigned_tracks);
+   // 2更新四步骤：更新匹配的，更新未匹配的，删除丢失的，创建新的
+  UpdateAssignedTracks(radar_frame, assignments); //
+  UpdateUnassignedTracks(radar_frame, unassigned_tracks); //  // 超过0.06秒设置为死亡
   DeleteLostTracks();
   CreateNewTracks(radar_frame, unassigned_objects);
 }
 
+// step2.1更新匹配的
 void ContiArsTracker::UpdateAssignedTracks(
     const base::Frame &radar_frame, std::vector<TrackObjectPair> assignments) {
   auto &radar_tracks = track_manager_->mutable_tracks();
   for (size_t i = 0; i < assignments.size(); ++i) {
-    radar_tracks[assignments[i].first]->UpdataObsRadar(
+    radar_tracks[assignments[i].first]->UpdataObsRadar( // modules/perception/radar/lib/tracker/common/radar_track.cc
         radar_frame.objects[assignments[i].second], radar_frame.timestamp);
   }
 }
@@ -125,7 +129,7 @@ void ContiArsTracker::UpdateUnassignedTracks(
     if (radar_tracks[unassigned_tracks[i]]->GetObs() != nullptr) {
       double radar_time = radar_tracks[unassigned_tracks[i]]->GetTimestamp();
       double time_diff = fabs(timestamp - radar_time);
-      if (time_diff > s_tracking_time_win_) {
+      if (time_diff > s_tracking_time_win_) { // 超过0.06秒设置为死亡
         radar_tracks[unassigned_tracks[i]]->SetDead();
       }
     } else {
@@ -147,6 +151,7 @@ void ContiArsTracker::CreateNewTracks(
   }
 }
 
+// step2
 void ContiArsTracker::CollectTrackedFrame(base::FramePtr tracked_frame) {
   if (tracked_frame == nullptr) {
     AERROR << "tracked_frame is nullptr";

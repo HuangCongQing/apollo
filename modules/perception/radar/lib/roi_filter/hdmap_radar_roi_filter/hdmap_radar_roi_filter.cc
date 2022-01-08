@@ -23,6 +23,7 @@ namespace radar {
 
 bool HdmapRadarRoiFilter::RoiFilter(const RoiFilterOptions& options,
                                     base::FramePtr radar_frame) {
+  // 滤除Roi范围外的障碍物：modules/perception/common/geometry/roi_filter.cc
   std::vector<base::ObjectPtr> origin_objects = radar_frame->objects;
   return common::ObjectInRoiCheck(options.roi, origin_objects,
                                   &radar_frame->objects);

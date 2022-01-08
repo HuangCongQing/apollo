@@ -94,6 +94,7 @@ bool IsObjectBboxInRoi(const HdmapStructConstPtr roi,
   return false;
 }
 
+// 滤除Roi范围外的障碍物
 bool ObjectInRoiCheck(const HdmapStructConstPtr roi,
                       const std::vector<ObjectPtr>& objects,
                       std::vector<ObjectPtr>* valid_objects) {

@@ -26,7 +26,7 @@ module_config {
     }
  }
 
-  # 识别模块 
+  # 识别模块
   components {
     class_name : "RecognitionComponent"
     config {
@@ -38,14 +38,14 @@ module_config {
     }
   }
 
-  # 毫米波模块 
+  # 毫米波模块
   components {
     class_name: "RadarDetectionComponent"
     config {
       name: "FrontRadarDetection"
-      config_file_path: "/apollo/modules/perception/production/conf/perception/radar/front_radar_component_conf.pb.txt"
+      config_file_path: "/apollo/modules/perception/production/conf/perception/radar/front_radar_component_conf.pb.txt" # 配置参数
       readers {
-          channel: "/apollo/sensor/radar/front"
+          channel: "/apollo/sensor/radar/front" # 输出channel
         }
     }
   }
@@ -61,7 +61,7 @@ module_config {
     }
   }
 
-  # 融合模块 
+  # 融合模块
   components {
     class_name: "FusionComponent"
     config {
