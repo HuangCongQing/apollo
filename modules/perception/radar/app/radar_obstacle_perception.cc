@@ -26,6 +26,7 @@ namespace apollo {
 namespace perception {
 namespace radar {
 
+// 初始化参数()
 bool RadarObstaclePerception::Init(const std::string& pipeline_name) {
   std::string model_name = pipeline_name;
   const ModelConfig* model_config = nullptr;
@@ -65,6 +66,7 @@ bool RadarObstaclePerception::Init(const std::string& pipeline_name) {
   return true;
 }
 
+// 核心处理函数，包括检测，ROI过滤，跟踪三个步骤====================================================
 bool RadarObstaclePerception::Perceive(
     const drivers::ContiRadar& corrected_obstacles,
     const RadarPerceptionOptions& options,
@@ -74,6 +76,7 @@ bool RadarObstaclePerception::Perceive(
   PERF_BLOCK_START();
   base::FramePtr detect_frame_ptr(new base::Frame());
 
+  // 1 检测 ContiArsDetector  modules/perception/radar/lib/detector/conti_ars_detector/conti_ars_detector.cc
   if (!detector_->Detect(corrected_obstacles, options.detector_options,
                          detect_frame_ptr)) {
     AERROR << "radar detect error";
@@ -82,6 +85,7 @@ bool RadarObstaclePerception::Perceive(
   ADEBUG << "Detected frame objects number: "
          << detect_frame_ptr->objects.size();
   PERF_BLOCK_END_WITH_INDICATOR(sensor_name, "detector");
+  // 2 ROI过滤 HdmapRadarRoiFilter
   if (!roi_filter_->RoiFilter(options.roi_filter_options, detect_frame_ptr)) {
     ADEBUG << "All radar objects were filtered out";
   }
@@ -90,6 +94,7 @@ bool RadarObstaclePerception::Perceive(
   PERF_BLOCK_END_WITH_INDICATOR(sensor_name, "roi_filter");
 
   base::FramePtr tracker_frame_ptr(new base::Frame);
+  // 3 跟踪 ContiArsTracker
   if (!tracker_->Track(*detect_frame_ptr, options.track_options,
                        tracker_frame_ptr)) {
     AERROR << "radar track error";

@@ -35,6 +35,7 @@ void BaseMatcher::SetBoundMatchDistance(double dist) {
 
 double BaseMatcher::GetBoundMatchDistance() { return s_bound_match_distance_; }
 
+//   ID匹配，相同id且距离小于2.5直接匹配上============================main
 void BaseMatcher::IDMatch(const std::vector<RadarTrackPtr> &radar_tracks,
                           const base::Frame &radar_frame,
                           std::vector<TrackObjectPair> *assignments,

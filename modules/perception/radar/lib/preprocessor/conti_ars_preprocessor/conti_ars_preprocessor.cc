@@ -23,6 +23,7 @@ namespace radar {
 int ContiArsPreprocessor::current_idx_ = 0;
 std::unordered_map<int, int> ContiArsPreprocessor::local2global_;
 
+// modules/perception/camera/tools/offline/conf/perception/radar/modules/conti_ars_preprocessor.config
 bool ContiArsPreprocessor::Init() {
   std::string model_name = "ContiArsPreprocessor";
   const lib::ModelConfig* model_config = nullptr;
@@ -32,14 +33,16 @@ bool ContiArsPreprocessor::Init() {
   return true;
 }
 
+// main入口================================================================
+// 雷达预处理的实现，包括 跳过不在时间范围内的目标，重新分配ID，修正时间戳(减去0.07)三个步骤。
 bool ContiArsPreprocessor::Preprocess(
     const drivers::ContiRadar& raw_obstacles,
     const PreprocessorOptions& options,
     drivers::ContiRadar* corrected_obstacles) {
   PERF_FUNCTION();
-  SkipObjects(raw_obstacles, corrected_obstacles);
-  ExpandIds(corrected_obstacles);
-  CorrectTime(corrected_obstacles);
+  SkipObjects(raw_obstacles, corrected_obstacles); // 1 跳过不在时间范围内的目标，
+  ExpandIds(corrected_obstacles); // 2 重新分配ID
+  CorrectTime(corrected_obstacles); // 3 修正时间戳(减去0.07)
   return true;
 }
 
@@ -47,12 +50,13 @@ std::string ContiArsPreprocessor::Name() const {
   return "ContiArsPreprocessor";
 }
 
+// 1 跳过不在时间范围内的目标，
 void ContiArsPreprocessor::SkipObjects(
     const drivers::ContiRadar& raw_obstacles,
     drivers::ContiRadar* corrected_obstacles) {
   corrected_obstacles->mutable_header()->CopyFrom(raw_obstacles.header());
   double timestamp = raw_obstacles.header().timestamp_sec() - 1e-6;
-  for (const auto& contiobs : raw_obstacles.contiobs()) {
+  for (const auto& contiobs : raw_obstacles.contiobs()) { // 遍历原始点云
     double object_timestamp = contiobs.header().timestamp_sec();
     if (object_timestamp > timestamp &&
         object_timestamp < timestamp + CONTI_ARS_INTERVAL) {
@@ -66,6 +70,7 @@ void ContiArsPreprocessor::SkipObjects(
   }
 }
 
+//  2 重新分配ID
 void ContiArsPreprocessor::ExpandIds(drivers::ContiRadar* corrected_obstacles) {
   for (int iobj = 0; iobj < corrected_obstacles->contiobs_size(); ++iobj) {
     const auto& contiobs = corrected_obstacles->contiobs(iobj);
@@ -87,10 +92,11 @@ void ContiArsPreprocessor::ExpandIds(drivers::ContiRadar* corrected_obstacles) {
   }
 }
 
+// 3 修正时间戳(减去0.07)
 void ContiArsPreprocessor::CorrectTime(
     drivers::ContiRadar* corrected_obstacles) {
   double correct_timestamp =
-      corrected_obstacles->header().timestamp_sec() - delay_time_;
+      corrected_obstacles->header().timestamp_sec() - delay_time_; // conti_ars_preprocessor.config
   corrected_obstacles->mutable_header()->set_timestamp_sec(correct_timestamp);
 }
 

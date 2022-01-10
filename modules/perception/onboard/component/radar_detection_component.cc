@@ -25,6 +25,7 @@ namespace apollo {
 namespace perception {
 namespace onboard {
 
+// 1初始化参数(参数文件配置在dag中)
 bool RadarDetectionComponent::Init() {
   RadarComponentConfig comp_config;
   if (!GetProtoConfig(&comp_config)) {
@@ -62,6 +63,7 @@ bool RadarDetectionComponent::Init() {
   return true;
 }
 
+// 2处理
 bool RadarDetectionComponent::Proc(const std::shared_ptr<ContiRadar>& message) {
   AINFO << "Enter radar preprocess, message timestamp: "
         << message->header().timestamp_sec() << " current timestamp "
@@ -100,6 +102,7 @@ bool RadarDetectionComponent::InitAlgorithmPlugin() {
   return true;
 }
 
+// 具体处理主要是两步，Preprocess，Perceive
 bool RadarDetectionComponent::InternalProc(
     const std::shared_ptr<ContiRadar>& in_message,
     std::shared_ptr<SensorFrameMessage> out_message) {
@@ -116,9 +119,12 @@ bool RadarDetectionComponent::InternalProc(
         << "]:cur_time[" << cur_time << "]:cur_latency[" << start_latency
         << "]";
   PERF_BLOCK_START();
-  // Init preprocessor_options
+  // Init preprocessor_options 1 预处理==============================================================
+  // 初始化预处理参数
   radar::PreprocessorOptions preprocessor_options;
+  // 预处理结果
   ContiRadar corrected_obstacles;
+  // 实现 modules/perception/radar/lib/preprocessor/conti_ars_preprocessor/conti_ars_preprocessor.cc:35
   radar_preprocessor_->Preprocess(raw_obstacles, preprocessor_options,
                                   &corrected_obstacles);
   PERF_BLOCK_END_WITH_INDICATOR(radar_info_.name, "radar_preprocessor");
@@ -129,6 +135,7 @@ bool RadarDetectionComponent::InternalProc(
   out_message->process_stage_ = ProcessStage::LONG_RANGE_RADAR_DETECTION;
   out_message->sensor_id_ = radar_info_.name;
 
+  // 初始化参数：radar2world转换矩阵，radar2自车转换矩阵、自车线速度和角速度
   // Init radar perception options
   radar::RadarPerceptionOptions options;
   options.sensor_name = radar_info_.name;
@@ -136,12 +143,14 @@ bool RadarDetectionComponent::InternalProc(
   // RadarDetectionComponent::InternalProc函数中调用TransformWrapper类的相关成员函数根据当前消息的时间戳进行坐标变换矩阵的获取。
   // 得到转换矩阵并保存在options.detector_options中
   Eigen::Affine3d radar_trans;
+  // radar2world的转换矩阵
   if (!radar2world_trans_.GetSensor2worldTrans(timestamp, &radar_trans)) {
     out_message->error_code_ = apollo::common::ErrorCode::PERCEPTION_ERROR_TF;
     AERROR << "Failed to get pose at time: " << timestamp;
     return true;
   }
   Eigen::Affine3d radar2novatel_trans;
+  // radar2自车的转换矩阵
   if (!radar2novatel_trans_.GetTrans(timestamp, &radar2novatel_trans, "novatel",
                                      tf_child_frame_id_)) {
     out_message->error_code_ = apollo::common::ErrorCode::PERCEPTION_ERROR_TF;
@@ -162,6 +171,7 @@ bool RadarDetectionComponent::InternalProc(
   }
   PERF_BLOCK_END_WITH_INDICATOR(radar_info_.name, "GetCarSpeed");
   // Init roi_filter_options
+  // radar到world的T矩阵偏移量
   base::PointD position;
   position.x = radar_trans(0, 3);
   position.y = radar_trans(1, 3);
@@ -175,6 +185,7 @@ bool RadarDetectionComponent::InternalProc(
   // Init object_filter_options
   // Init track_options
   // Init object_builder_options
+  // 处理预处理后的radar obj modules/perception/radar/app/radar_obstacle_perception.cc===================================================
   std::vector<base::ObjectPtr> radar_objects;
   if (!radar_perception_->Perceive(corrected_obstacles, options,
                                    &radar_objects)) {
