@@ -259,7 +259,7 @@ void KalmanMotionFusion::MotionFusionWithMeasurement(
   env_uncertainty *= 0.5;
 
   // 3.1 预测(modules/perception/fusion/common/kalman_filter.cc)
-  kalman_filter_.Predict(transform_matrix, env_uncertainty);
+  kalman_filter_.Predict(transform_matrix, env_uncertainty); // 预测当前值和协方差矩阵
 
   // 3.2 计算加速度
   // 对camera目标，直接使用卡尔曼滤波一步预测后的加速度。应该是相机目标的加速度测的不准，不信赖其加速度？
@@ -298,11 +298,12 @@ void KalmanMotionFusion::MotionFusionWithMeasurement(
          << r_matrix(3, 2) << "," << r_matrix(3, 3) << ")";
 
   // Compute pseudo measurement
-  // 3.4 修正观测值
+  // 3.4 修正观测值z_t  主要函数ComputePseudoMeasurement
   // Apollo特有的，就是根据历史的radar和lidar观测来修正当前帧的观测值，减少过大的突变，
-  Eigen::Vector4d temp_observation = observation.head(4);
+  Eigen::Vector4d temp_observation = observation.head(4); // 之前的观测值
   Eigen::Vector4d pseudo_measurement =
-      ComputePseudoMeasurement(temp_observation, measurement->GetSensorType()); // 具体实现
+      ComputePseudoMeasurement(temp_observation, measurement->GetSensorType()); // 具体实现得到测方程结果z_t
+  // 现在的测量观测方程结果z_t：observation
   observation.head(4) = pseudo_measurement;
 
   // 3.5 保存修正后的观测数据
@@ -314,11 +315,12 @@ void KalmanMotionFusion::MotionFusionWithMeasurement(
   }
 
   // Adapt noise level to rewarding status
-  // 3.6 调整R矩阵
+  // 3.6 调整R矩阵（观测噪声）
   // 针对是否lidar观测和是否收敛，调整R矩阵
   RewardRMatrix(measurement->GetSensorType(),
                 measurement->GetBaseObject()->velocity_converged, &r_matrix);
 
+  // 观测结果z_t
   ADEBUG << "fusion_pseudo_measurement@(" << std::setprecision(10)
          << observation(0) << "," << observation(1) << "," << observation(2)
          << "," << observation(3) << ")";
@@ -330,7 +332,7 @@ void KalmanMotionFusion::MotionFusionWithMeasurement(
   // 3.7 解协方差
   // 认为速度和位置互不影响，状态协方差矩阵P（6*6）的(2，0) (2,1) (3,0) (3,1)位置设为0
   kalman_filter_.DeCorrelation(2, 0, 2, 2);
-  // 3.8 卡尔曼更新
+  // 3.8 卡尔曼更新（输入：）
   kalman_filter_.Correct(observation, r_matrix);
   // 3.9 修正更新后的加速度和速度
   kalman_filter_.CorrectionBreakdown();

@@ -78,8 +78,8 @@ class RadarDetectionComponent : public cyber::Component<ContiRadar> {
   std::string pipeline_name_;
   std::string odometry_channel_name_;
 
-  TransformWrapper radar2world_trans_;
-  TransformWrapper radar2novatel_trans_;
+  TransformWrapper radar2world_trans_; // 分别用来查询radar到world坐标系之间的变换，以及radar到novatel坐标系之间的变换；
+  TransformWrapper radar2novatel_trans_; // 在RadarDetectionComponent::Init函数中初始化该类：
   map::HDMapInput* hdmap_input_;
   std::shared_ptr<radar::BasePreprocessor> radar_preprocessor_;
   std::shared_ptr<radar::BaseRadarObstaclePerception> radar_perception_;

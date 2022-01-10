@@ -28,7 +28,7 @@ bool ContiArsDetector::Detect(const drivers::ContiRadar& corrected_obstacles,
                               base::FramePtr radar_frame) {
   RawObs2Frame(corrected_obstacles, options, radar_frame);
   radar_frame->timestamp = corrected_obstacles.header().timestamp_sec();
-  radar_frame->sensor2world_pose = *(options.radar2world_pose);
+  radar_frame->sensor2world_pose = *(options.radar2world_pose); // radar2world_pose是在radar_detection_component.c初始化并得到的
   return true;
 }
 

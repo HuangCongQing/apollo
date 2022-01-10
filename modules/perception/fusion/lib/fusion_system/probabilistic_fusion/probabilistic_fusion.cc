@@ -240,13 +240,13 @@ void ProbabilisticFusion::FuseForegroundTrack(const SensorFramePtr& frame) {
   this->UpdateAssignedTracks(frame, assignments);
   PERF_BLOCK_END_WITH_INDICATOR(indicator, "update_assigned_track");
   
-  // 1.3更新未匹配的航迹
+  // 1.3更新未匹配的航迹track
   const std::vector<size_t>& unassigned_track_inds =
       association_result.unassigned_tracks;
   this->UpdateUnassignedTracks(frame, unassigned_track_inds);
   PERF_BLOCK_END_WITH_INDICATOR(indicator, "update_unassigned_track");
 
-  // 1.4未匹配上的量测新建航迹=====新建!
+  // 1.4未匹配上的obj量测新建航迹=====新建!
   const std::vector<size_t>& unassigned_obj_inds =
       association_result.unassigned_measurements;
   this->CreateNewTracks(frame, unassigned_obj_inds);

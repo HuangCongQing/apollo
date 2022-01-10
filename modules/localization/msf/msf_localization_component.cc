@@ -136,6 +136,7 @@ bool LocalizationMsgPublisher::InitIO() {
   return true;
 }
 
+// localization到world坐标系的变换关系
 void LocalizationMsgPublisher::PublishPoseBroadcastTF(
     const LocalizationEstimate& localization) {
   // broadcast tf message
@@ -143,6 +144,7 @@ void LocalizationMsgPublisher::PublishPoseBroadcastTF(
 
   auto mutable_head = tf2_msg.mutable_header();
   mutable_head->set_timestamp_sec(localization.measurement_time());
+  // broadcast_tf_frame_id_和broadcast_tf_child_frame_id 定义在modules/localization/common/localization_gflags.cc文件中：
   mutable_head->set_frame_id(broadcast_tf_frame_id_);
   tf2_msg.set_child_frame_id(broadcast_tf_child_frame_id_);
 

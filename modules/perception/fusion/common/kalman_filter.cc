@@ -84,16 +84,16 @@ bool KalmanFilter::Predict(const Eigen::MatrixXd &transform_matrix,
   }
   transform_matrix_ = transform_matrix;
   env_uncertainty_ = env_uncertainty_matrix;
-  // X_ = F * X
+  //预测当前值 X_ = F * X
   global_states_ = transform_matrix_ * global_states_;
-  // P_ = F * P * F_t + Q
+  //预测协方差矩阵 P_ = F * P * F_t + Q
   global_uncertainty_ =
       transform_matrix_ * global_uncertainty_ * transform_matrix_.transpose() +
       env_uncertainty_;
   return true;
 }
 
-// 3.8 卡尔曼更新
+// 3.8 卡尔曼增益更新
 bool KalmanFilter::Correct(const Eigen::VectorXd &cur_observation,
                            const Eigen::MatrixXd &cur_observation_uncertainty) {
   if (!init_) {
@@ -115,16 +115,21 @@ bool KalmanFilter::Correct(const Eigen::VectorXd &cur_observation,
     return false;
   }
 
+  // 测量方程结果z_t
   cur_observation_ = cur_observation;
+  // R 观测噪声
   cur_observation_uncertainty_ = cur_observation_uncertainty;
+  // 卡尔曼增益P_t*H(HPH + R)
   kalman_gain_ = global_uncertainty_ * c_matrix_.transpose() *
                  (c_matrix_ * global_uncertainty_ * c_matrix_.transpose() +
                   cur_observation_uncertainty_)
                      .inverse();
+  //  修正估计（最终结果） x_t = x_t + K(z_t - H*x_t)
   global_states_ = global_states_ + kalman_gain_ * (cur_observation_ -
                                                     c_matrix_ * global_states_);
   Eigen::MatrixXd tmp_identity;
   tmp_identity.setIdentity(states_num_, states_num_);
+  // 噪声
   global_uncertainty_ =
       (tmp_identity - kalman_gain_ * c_matrix_) * global_uncertainty_ *
           (tmp_identity - kalman_gain_ * c_matrix_).transpose() +

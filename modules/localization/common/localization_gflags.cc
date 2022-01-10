@@ -119,6 +119,7 @@ DEFINE_bool(enable_lidar_localization, true,
 
 DEFINE_string(lidar_topic, "/apollo/sensor/lidar128/compensator/PointCloud2",
               "lidar pointcloud topic");
+//   broadcast_tf_frame_id_和broadcast_tf_child_frame_id_定义在下
 DEFINE_string(broadcast_tf_frame_id, "world", "world frame id in tf");
 DEFINE_string(broadcast_tf_child_frame_id, "localization",
               "localization frame id in tf");

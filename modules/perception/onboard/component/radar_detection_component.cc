@@ -52,6 +52,8 @@ bool RadarDetectionComponent::Init() {
 
   // Init algorithm plugin
   ACHECK(InitAlgorithmPlugin()) << "Failed to init algorithm plugin.";
+  // .h中定义了如下成员变量：
+  // 在RadarDetectionComponent::Init函数中初始化该类：
   radar2world_trans_.Init(tf_child_frame_id_);
   radar2novatel_trans_.Init(tf_child_frame_id_);
   localization_subscriber_.Init(
@@ -131,6 +133,8 @@ bool RadarDetectionComponent::InternalProc(
   radar::RadarPerceptionOptions options;
   options.sensor_name = radar_info_.name;
   // Init detector_options
+  // RadarDetectionComponent::InternalProc函数中调用TransformWrapper类的相关成员函数根据当前消息的时间戳进行坐标变换矩阵的获取。
+  // 得到转换矩阵并保存在options.detector_options中
   Eigen::Affine3d radar_trans;
   if (!radar2world_trans_.GetSensor2worldTrans(timestamp, &radar_trans)) {
     out_message->error_code_ = apollo::common::ErrorCode::PERCEPTION_ERROR_TF;
@@ -144,10 +148,11 @@ bool RadarDetectionComponent::InternalProc(
     AERROR << "Failed to get radar2novatel trans at time: " << timestamp;
     return true;
   }
+  // 得到转换矩阵并保存在options.detector_options中
   PERF_BLOCK_END_WITH_INDICATOR(radar_info_.name, "GetSensor2worldTrans");
-  Eigen::Matrix4d radar2world_pose = radar_trans.matrix();
+  Eigen::Matrix4d radar2world_pose = radar_trans.matrix(); //得到转换矩阵
   options.detector_options.radar2world_pose = &radar2world_pose;
-  Eigen::Matrix4d radar2novatel_trans_m = radar2novatel_trans.matrix();
+  Eigen::Matrix4d radar2novatel_trans_m = radar2novatel_trans.matrix();//得到转换矩阵
   options.detector_options.radar2novatel_trans = &radar2novatel_trans_m;
   if (!GetCarLocalizationSpeed(timestamp,
                                &(options.detector_options.car_linear_speed),
