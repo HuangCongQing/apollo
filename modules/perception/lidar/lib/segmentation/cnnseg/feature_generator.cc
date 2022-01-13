@@ -110,6 +110,7 @@ bool FeatureGenerator::Init(const FeatureParam& feature_param,
   return true;
 }
 
+// css_seg 特征生成CPU
 void FeatureGenerator::GenerateCPU(const base::PointFCloudPtr& pc_ptr,
                                    const std::vector<int>& point2grid) {
   // DO NOT remove this line!!!

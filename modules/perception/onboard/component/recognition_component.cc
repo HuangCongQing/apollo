@@ -78,6 +78,7 @@ bool RecognitionComponent::InitAlgorithmPlugin() {
   return true;
 }
 
+// 识别&跟踪===========================main
 bool RecognitionComponent::InternalProc(
     const std::shared_ptr<const LidarFrameMessage>& in_message,
     const std::shared_ptr<SensorFrameMessage>& out_message) {
@@ -100,7 +101,7 @@ bool RecognitionComponent::InternalProc(
   lidar::LidarObstacleTrackingOptions track_options;
   track_options.sensor_name = sensor_name;
   lidar::LidarProcessResult ret =
-      tracker_->Process(track_options, lidar_frame.get());
+      tracker_->Process(track_options, lidar_frame.get()); // app/lidar_obstacle_tracking.cc=========================main
   PERF_BLOCK_END_WITH_INDICATOR(sensor_name, "recognition_1::track_obstacle");
   if (ret.error_code != lidar::LidarErrorCode::Succeed) {
     out_message->error_code_ =

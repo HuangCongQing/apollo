@@ -61,6 +61,7 @@ bool LidarObstacleTracking::Init(
   return true;
 }
 
+// 先track追踪再分类=====================================================main入口
 LidarProcessResult LidarObstacleTracking::Process(
     const LidarObstacleTrackingOptions& options, LidarFrame* frame) {
   const auto& sensor_name = options.sensor_name;
@@ -68,6 +69,7 @@ LidarProcessResult LidarObstacleTracking::Process(
   PERF_FUNCTION_WITH_INDICATOR(sensor_name);
 
   PERF_BLOCK_START();
+  // 追踪track
   MultiTargetTrackerOptions tracker_options;
   if (!multi_target_tracker_->Track(tracker_options, frame)) {
     return LidarProcessResult(LidarErrorCode::TrackerError,
@@ -75,6 +77,7 @@ LidarProcessResult LidarObstacleTracking::Process(
   }
   PERF_BLOCK_END_WITH_INDICATOR(sensor_name, "tracker");
 
+  // 分类：对目标序列进行分类，填充目标类型信息；
   ClassifierOptions fusion_classifier_options;
   if (!fusion_classifier_->Classify(fusion_classifier_options, frame)) {
     return LidarProcessResult(LidarErrorCode::ClassifierError,

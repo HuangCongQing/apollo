@@ -49,6 +49,7 @@ bool MapManager::Init(const MapManagerInitOptions& options) {
   return true;
 }
 
+// 
 bool MapManager::Update(const MapManagerOptions& options, LidarFrame* frame) {
   if (!frame) {
     AINFO << "Frame is nullptr.";

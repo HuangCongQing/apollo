@@ -73,6 +73,7 @@ std::shared_ptr<Blob<float>> TorchDet::get_blob(
   return iter->second;
 }
 
+// 推理=============================================main入口
 void TorchDet::Infer() {
   torch::Device device(device_type_, device_id_);
   auto blob = blobs_[input_names_[0]];

@@ -154,6 +154,7 @@ __global__ void SetKernel(const int n, const Dtype alpha, Dtype* y) {
   CUDA_KERNEL_LOOP(i, n) { y[i] = alpha; }
 }
 
+// css_seg 特征生成GPU
 void FeatureGenerator::GenerateGPU(const base::PointFCloudPtr& pc_ptr,
                                    const std::vector<int>& point2grid) {
   // fill initial value for feature blob

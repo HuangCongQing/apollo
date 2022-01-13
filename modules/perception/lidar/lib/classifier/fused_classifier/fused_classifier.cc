@@ -57,6 +57,7 @@ bool FusedClassifier::Init(const ClassifierInitOptions& options) {
   return init_success;
 }
 
+// 调用FusedClassifier算法：对目标序列进行分类，填充目标类型信息；
 bool FusedClassifier::Classify(const ClassifierOptions& options,
                                LidarFrame* frame) {
   if (frame == nullptr) {
@@ -71,6 +72,7 @@ bool FusedClassifier::Classify(const ClassifierOptions& options,
     sequence_.AddTrackedFrameObjects(*objects, frame->timestamp);
     ObjectSequence::TrackedObjects tracked_objects;
     for (auto& object : *objects) {
+      // 如果是背景
       if (object->lidar_supplement.is_background) {
         object->type_probs.assign(static_cast<int>(ObjectType::MAX_OBJECT_TYPE),
                                   0);

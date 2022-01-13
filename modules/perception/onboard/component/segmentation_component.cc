@@ -93,7 +93,7 @@ bool SegmentationComponent::InitAlgorithmPlugin() {
   lidar2world_trans_.Init(lidar2novatel_tf2_child_frame_id_);
   return true;
 }
-
+// 分割原始点云，得到分割目标序列，即完成对点云目标的分割，得到属于该分割目标的点云，并拟合轮廓，得到bbox等属性
 bool SegmentationComponent::InternalProc(
     const std::shared_ptr<const drivers::PointCloud>& in_message,
     const std::shared_ptr<LidarFrameMessage>& out_message) {
@@ -142,7 +142,7 @@ bool SegmentationComponent::InternalProc(
   segment_opts.sensor_name = sensor_name_;
   lidar2world_trans_.GetExtrinsics(&segment_opts.sensor2novatel_extrinsics);
   lidar::LidarProcessResult ret =
-      segmentor_->Process(segment_opts, in_message, frame.get());
+      segmentor_->Process(segment_opts, in_message, frame.get()); // app/lidar_obstacle_segmentation.cc
   if (ret.error_code != lidar::LidarErrorCode::Succeed) {
     out_message->error_code_ =
         apollo::common::ErrorCode::PERCEPTION_ERROR_PROCESS;

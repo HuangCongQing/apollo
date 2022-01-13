@@ -63,7 +63,7 @@ bool PointCloudPreprocessor::Init(
   return true;
 }
 
-// 不允许这个点云预处理，运行下面那个函数
+// 点云预处理(Apollo5.5)
 bool PointCloudPreprocessor::Preprocess(
     const PointCloudPreprocessorOptions& options,
     const std::shared_ptr<apollo::drivers::PointCloud const>& message,
@@ -120,7 +120,7 @@ bool PointCloudPreprocessor::Preprocess(
   return true;
 }
 
-// main预处理函数========================================
+// main预处理函数(Apollo6.0)========================================
 bool PointCloudPreprocessor::Preprocess(
     const PointCloudPreprocessorOptions& options, LidarFrame* frame) const {
   if (frame == nullptr || frame->cloud == nullptr) {

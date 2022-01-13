@@ -254,6 +254,7 @@ void CNNSegmentation::MapPointToGrid(
   }
 }
 
+// cnn_seg感知算法 https://www.yuque.com/huangzhongqing/crvg1o/lkpg8g  --------------------main入口
 bool CNNSegmentation::Segment(const SegmentationOptions& options,
                               LidarFrame* frame) {
   // check input
@@ -288,8 +289,8 @@ bool CNNSegmentation::Segment(const SegmentationOptions& options,
 
   // note we should use origninal cloud here, frame->cloud may be exchanged
   Timer timer;
-  // map 3d points to 2d image grids
-  MapPointToGrid(original_cloud_);
+  // map 3d points to 2d image grids 点云生成2D栅格
+  MapPointToGrid(original_cloud_);  // 点云生成2D栅格
   mapping_time_ = timer.toc(true);
 
   if (cudaSetDevice(gpu_id_) != cudaSuccess) {
@@ -297,15 +298,15 @@ bool CNNSegmentation::Segment(const SegmentationOptions& options,
     return false;
   }
 
-  // generate features
+  // generate features 生成特征  modules/perception/lidar/lib/segmentation/cnnseg/feature_generator.cu
   feature_generator_->Generate(original_cloud_, point2grid_);
   feature_time_ = timer.toc(true);
 
-  // model inference
+  // model inference 模型inference modules/perception/inference/caffe/caffe_net.cc
   inference_->Infer();
   infer_time_ = timer.toc(true);
 
-  // processing clustering
+  // processing clustering 聚类
   GetObjectsFromSppEngine(&frame->segmented_objects);
 
   AINFO << "CNNSEG: mapping: " << mapping_time_ << "\t"

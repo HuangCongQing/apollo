@@ -101,6 +101,7 @@ bool CaffeNet::reshape() {
   return true;
 }
 
+// CffeNet: 推理============================================main入口
 void CaffeNet::Infer() {
   if (gpu_id_ >= 0) {
     caffe::Caffe::SetDevice(gpu_id_);

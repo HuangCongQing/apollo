@@ -96,6 +96,8 @@ LidarProcessResult LidarObstacleSegmentation::Process(
                             "Failed to preprocess point cloud.");
 }
 
+// LidarObstacleSegmentation——点云分割类==================================main
+// 分割原始点云，得到分割目标序列，即完成对点云目标的分割，得到属于该分割目标的点云，并拟合轮廓，得到bbox等属性
 LidarProcessResult LidarObstacleSegmentation::Process(
     const LidarObstacleSegmentationOptions& options,
     const std::shared_ptr<apollo::drivers::PointCloud const>& message,
@@ -109,6 +111,7 @@ LidarProcessResult LidarObstacleSegmentation::Process(
   preprocessor_options.sensor2novatel_extrinsics =
       options.sensor2novatel_extrinsics;
   PERF_BLOCK_END_WITH_INDICATOR(sensor_name, "preprocess");
+  // 0 点云预处理
   if (cloud_preprocessor_.Preprocess(preprocessor_options, message, frame)) {
     return ProcessCommon(options, frame);
   }
@@ -116,11 +119,14 @@ LidarProcessResult LidarObstacleSegmentation::Process(
                             "Failed to preprocess point cloud.");
 }
 
+// 各个流程
 LidarProcessResult LidarObstacleSegmentation::ProcessCommon(
     const LidarObstacleSegmentationOptions& options, LidarFrame* frame) {
   const auto& sensor_name = options.sensor_name;
 
   PERF_BLOCK_START();
+  // 1 根据激光雷达的绝对位置找到周围感兴趣区域，填充lidar_frame->hdmap_struct
+  // modules/perception/lidar/lib/map_manager/map_manager.cc
   if (use_map_manager_) {
     MapManagerOptions map_manager_options;
     if (!map_manager_.Update(map_manager_options, frame)) {
@@ -130,6 +136,7 @@ LidarProcessResult LidarObstacleSegmentation::ProcessCommon(
   }
   PERF_BLOCK_END_WITH_INDICATOR(sensor_name, "map_manager");
 
+  // 2 语义分割的方法cnn_seg  modules/perception/lidar/lib/segmentation/cnnseg/cnn_segmentation.cc
   SegmentationOptions segmentation_options;
   if (!segmentor_->Segment(segmentation_options, frame)) {
     return LidarProcessResult(LidarErrorCode::SegmentationError,
@@ -137,6 +144,8 @@ LidarProcessResult LidarObstacleSegmentation::ProcessCommon(
   }
   PERF_BLOCK_END_WITH_INDICATOR(sensor_name, "segmentation");
 
+  // 3 计算segmented_objects中目标的polygon、center、anchor_point等属性；
+  // modules/perception/lidar/lib/object_builder/object_builder.cc
   ObjectBuilderOptions builder_options;
   if (!builder_.Build(builder_options, frame)) {
     return LidarProcessResult(LidarErrorCode::ObjectBuilderError,
@@ -144,6 +153,8 @@ LidarProcessResult LidarObstacleSegmentation::ProcessCommon(
   }
   PERF_BLOCK_END_WITH_INDICATOR(sensor_name, "object_builder");
 
+  // 4 即调用之前找到的激光雷达周围高精度地图感兴趣区域，来限定部分激光雷达目标；
+  // modules/perception/lidar/lib/object_filter_bank/object_filter_bank.cc
   ObjectFilterOptions filter_options;
   if (!filter_bank_.Filter(filter_options, frame)) {
     return LidarProcessResult(LidarErrorCode::ObjectFilterError,

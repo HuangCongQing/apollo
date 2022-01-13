@@ -169,6 +169,9 @@ bool NCutSegmentation::GetConfigs(std::string* param_file) {
   return true;
 }
 
+// 启发式的Ncut======================================================入口main
+// https://www.yuque.com/huangzhongqing/crvg1o/eroe1m
+// 算法核心思想：将点云转化为拓扑图分割问题，利用图聚类的方法（Ncut）解决问题，每一簇即为一个障碍物，虽然可以予点云以区分，但是缺乏对应的语义信息。
 bool NCutSegmentation::Segment(const SegmentationOptions& options,
                                LidarFrame* frame) {
   // check input

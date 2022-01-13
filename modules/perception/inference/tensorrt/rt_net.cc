@@ -740,6 +740,7 @@ RTNet::~RTNet() {
   }
 }
 
+// tensorRT推理====================================================main入口
 void RTNet::Infer() {
   BASE_CUDA_CHECK(cudaSetDevice(gpu_id_));
   BASE_CUDA_CHECK(cudaStreamSynchronize(stream_));
