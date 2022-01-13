@@ -74,6 +74,7 @@ bool SpatioTemporalGroundDetector::Init(
   return true;
 }
 
+// 地面分割=============================================main入口
 bool SpatioTemporalGroundDetector::Detect(const GroundDetectorOptions& options,
                                           LidarFrame* frame) {
   // check input
@@ -123,7 +124,7 @@ bool SpatioTemporalGroundDetector::Detect(const GroundDetectorOptions& options,
   // reallocate memory if points num > the preallocated size
   num_points_all = num_points;
 
-  if (num_points_all > default_point_size_) {
+  if (num_points_all > default_point_size_) { // default_point_size_=320000;
     default_point_size_ = num_points * 2;
     point_indices_temp_.resize(default_point_size_);
     data_.resize(default_point_size_ * 3);
@@ -131,14 +132,15 @@ bool SpatioTemporalGroundDetector::Detect(const GroundDetectorOptions& options,
   }
 
   // copy point data, filtering lower points under ground
-  if (use_roi_) {
+  if (use_roi_) { // use_roi_ = true;
     for (i = 0; i < num_points; ++i) {
       index = frame->roi_indices.indices[i];
       const auto& pt = frame->world_cloud->at(index);
-      point_indices_temp_[valid_point_num++] = index;
+      point_indices_temp_[valid_point_num++] = index; // 
       data_[data_id++] = static_cast<float>(pt.x - cloud_center_(0));
       data_[data_id++] = static_cast<float>(pt.y - cloud_center_(1));
       data_[data_id++] = static_cast<float>(pt.z - cloud_center_(2));
+      // LOG_INFO << "[no_use_roi_]每个合法点的xyz: "<<pt.x<<" "<<pt.y<<" "<<pt.z; // 
     }
   } else {
     for (i = 0; i < num_points; ++i) {
@@ -156,23 +158,26 @@ bool SpatioTemporalGroundDetector::Detect(const GroundDetectorOptions& options,
   base::PointIndices& non_ground_indices = frame->non_ground_indices;
   ADEBUG << "input of ground detector:" << valid_point_num;
 
+  // 具体地面分割算法 modules/perception/common/i_lib/pc/i_ground.cc
   if (!pfdetector_->Detect(data_.data(), ground_height_signed_.data(),
                            valid_point_num, nr_points_element)) {
     ADEBUG << "failed to call ground detector!";
+    // 非地面点
     non_ground_indices.indices.insert(
         non_ground_indices.indices.end(), point_indices_temp_.begin(),
         point_indices_temp_.begin() + valid_point_num);
     return false;
   }
 
+  // 遍历合法点
   for (i = 0; i < valid_point_num_cur; ++i) {
     z_distance = ground_height_signed_.data()[i];
     frame->cloud->mutable_points_height()->at(point_indices_temp_[i]) =
         z_distance;
     frame->world_cloud->mutable_points_height()->at(point_indices_temp_[i]) =
         z_distance;
-    if (common::IAbs(z_distance) > ground_thres_) {
-      non_ground_indices.indices.push_back(point_indices_temp_[i]);
+    if (common::IAbs(z_distance) > ground_thres_) { // ground_thres_ = 0.25f;
+      non_ground_indices.indices.push_back(point_indices_temp_[i]); // 非地面点存入
     } else {
       frame->cloud->mutable_points_label()->at(point_indices_temp_[i]) =
           static_cast<uint8_t>(LidarPointLabel::GROUND);
@@ -183,7 +188,7 @@ bool SpatioTemporalGroundDetector::Detect(const GroundDetectorOptions& options,
   AINFO << "succeed to call ground detector with non ground points "
         << non_ground_indices.indices.size();
 
-  if (use_ground_service_) {
+  if (use_ground_service_) { // use_ground_service_ = false;
     auto ground_service = SceneManager::Instance().Service("GroundService");
     if (ground_service != nullptr) {
       ground_service_content_.grid_center_ = cloud_center_;

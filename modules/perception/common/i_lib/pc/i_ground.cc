@@ -384,6 +384,7 @@ void PlaneFitGroundDetector::ComputeAdaptiveThreshold() {
   }
 }
 
+// 找出非地面点
 void PlaneFitGroundDetector::ComputeSignedGroundHeight(
     const float *point_cloud, float *height_above_ground,
     unsigned int nr_points, unsigned int nr_point_elements) {
@@ -392,6 +393,7 @@ void PlaneFitGroundDetector::ComputeSignedGroundHeight(
   for (r = 0; r < nr_points; ++r) {
     height_above_ground[r] = std::numeric_limits<float>::max();
   }
+  // 计算中间线的地面高度
   ComputeSignedGroundHeightLine(
       point_cloud, ground_planes_[0], ground_planes_[0], ground_planes_[1],
       height_above_ground, 0, nr_points, nr_point_elements);
@@ -1232,6 +1234,7 @@ int PlaneFitGroundDetector::Smooth() {
   return nr_grids;
 }
 
+// 平面拟合算法base=================================================================
 bool PlaneFitGroundDetector::Detect(const float *point_cloud,
                                     float *height_above_ground,
                                     unsigned int nr_points,
@@ -1277,7 +1280,7 @@ bool PlaneFitGroundDetector::Detect(const float *point_cloud,
 
   // std::cout << "# of valid plane geometry (Smooth): " << nr_valid_grid <<
   // std::endl;
-  // compute point to ground distance
+  // compute point to ground distance 计算点到地面的距离，找出非地面点
   ComputeSignedGroundHeight(point_cloud, height_above_ground, nr_points,
                             nr_point_elements);
   return true;
