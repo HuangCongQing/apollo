@@ -61,6 +61,7 @@ bool MlfTrackObjectMatcher::Init(
   return true;
 }
 
+// 匹配调用
 void MlfTrackObjectMatcher::Match(
     const MlfTrackObjectMatcherOptions &options,
     const std::vector<TrackedObjectPtr> &objects,
@@ -89,7 +90,7 @@ void MlfTrackObjectMatcher::Match(
   common::SecureMat<float> *association_mat = matcher->cost_matrix();
 
   association_mat->Resize(tracks.size(), objects.size());
-  ComputeAssociateMatrix(tracks, objects, association_mat);
+  ComputeAssociateMatrix(tracks, objects, association_mat); // 计算关联矩阵
   matcher->Match(matcher_options, assignments, unassigned_tracks,
                  unassigned_objects);
   for (size_t i = 0; i < assignments->size(); ++i) {
@@ -100,6 +101,7 @@ void MlfTrackObjectMatcher::Match(
   }
 }
 
+// 计算关联矩阵
 void MlfTrackObjectMatcher::ComputeAssociateMatrix(
     const std::vector<MlfTrackDataPtr> &tracks,
     const std::vector<TrackedObjectPtr> &new_objects,

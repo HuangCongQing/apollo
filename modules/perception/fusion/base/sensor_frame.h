@@ -29,6 +29,8 @@ namespace apollo {
 namespace perception {
 namespace fusion {
 
+// SensorFrame：一帧所有的目标(分为前景和后景)
+// 传感器数据帧类，通过 std::vector 维护每一帧的前景目标列表 foreground_objects_ 和背景目标列表 background_objects_，每个目标的类型是 SensorObject；
 struct SensorFrameHeader {
   base::SensorInfo sensor_info;
   double timestamp = 0.0;
@@ -42,6 +44,7 @@ struct SensorFrameHeader {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 } EIGEN_ALIGN16;
 
+// SensorFrame：一帧所有的目标(分为前景和后景)
 class SensorFrame {
  public:
   SensorFrame();

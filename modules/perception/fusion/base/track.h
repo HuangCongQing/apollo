@@ -28,8 +28,9 @@ namespace apollo {
 namespace perception {
 namespace fusion {
 
-typedef std::map<std::string, SensorObjectPtr> SensorId2ObjectMap;
+typedef std::map<std::string, SensorObjectPtr> SensorId2ObjectMap; // 映射
 
+// 一个track就是一个航迹
 class Track {
  public:
   Track();
@@ -58,7 +59,7 @@ class Track {
   SensorObjectConstPtr GetLatestRadarObject() const;
   SensorObjectConstPtr GetLatestCameraObject() const;
 
-  inline FusedObjectPtr GetFusedObject() { return fused_object_; }
+  inline FusedObjectPtr GetFusedObject() { return fused_object_; } //得到融合障碍物
   inline SensorId2ObjectMap& GetLidarObjects() { return lidar_objects_; }
 
   inline const SensorId2ObjectMap& GetLidarObjects() const {

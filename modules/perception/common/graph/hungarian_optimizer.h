@@ -271,12 +271,12 @@ void HungarianOptimizer<T>::Minimize(
   // 1 初始化参数
   OptimizationInit();
 
-  // 2 匈牙利（Kuhn-Munkres）算法（一共五步）=====================================
+  // 2 匈牙利（Kuhn-Munkres）算法（一共五步）=====================================！important
   DoMunkres();
 
   // 3 读取star为最终结果（直接读prime不行吗？）
   FindAssignments(assignments);
-  // 
+  //
   OptimizationClear();
 }
 

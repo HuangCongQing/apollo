@@ -21,6 +21,7 @@ namespace apollo {
 namespace perception {
 namespace fusion {
 
+// Sensor：历史十帧数据
 size_t Sensor::kMaxCachedFrameNum = 10;
 
 void Sensor::QueryLatestFrames(double timestamp,

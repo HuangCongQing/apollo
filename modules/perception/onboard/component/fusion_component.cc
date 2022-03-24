@@ -29,22 +29,22 @@ uint32_t FusionComponent::s_seq_num_ = 0;
 std::mutex FusionComponent::s_mutex_;
 
 bool FusionComponent::Init() {
-  FusionComponentConfig comp_config;
-  if (!GetProtoConfig(&comp_config)) {
+  FusionComponentConfig comp_config; // 实例化配置参数 protobuf 类：fusion_component_config.proto
+  if (!GetProtoConfig(&comp_config)) { // 将 txt 配置文件中的配置参数读入 protobuf 类：fusion_component_conf.pb.txt
     return false;
   }
   AINFO << "Fusion Component Configs: " << comp_config.DebugString();
 
   // to load component configs
-  fusion_method_ = comp_config.fusion_method();
+  fusion_method_ = comp_config.fusion_method(); // 融合方法：ProbabilisticFusion
   fusion_main_sensor_ = comp_config.fusion_main_sensor();
   object_in_roi_check_ = comp_config.object_in_roi_check();
   radius_for_roi_object_check_ = comp_config.radius_for_roi_object_check();
 
-  // init algorithm plugin
-  ACHECK(InitAlgorithmPlugin()) << "Failed to init algorithm plugin.";
+  // init algorithm plugin（创建node节点）
+  ACHECK(InitAlgorithmPlugin()) << "Failed to init algorithm plugin."; // 调用私有初始化方法 InitAlgorithmPlugin，执行更详细的初始化动作
   writer_ = node_->CreateWriter<PerceptionObstacles>(
-      comp_config.output_obstacles_channel_name());
+      comp_config.output_obstacles_channel_name()); // 用于输出 protobuf 格式的经 HD Map ROI 校验过的有效融合障碍物信息：perception_obstacle.proto
   inner_writer_ = node_->CreateWriter<SensorFrameMessage>(
       comp_config.output_viz_fused_content_channel_name());
   return true;
@@ -79,10 +79,10 @@ bool FusionComponent::Proc(const std::shared_ptr<SensorFrameMessage>& message) {
 }
 
 bool FusionComponent::InitAlgorithmPlugin() {
-  fusion_.reset(new fusion::ObstacleMultiSensorFusion());
-  fusion::ObstacleMultiSensorFusionParam param;
-  param.main_sensor = fusion_main_sensor_;
-  param.fusion_method = fusion_method_;
+  fusion_.reset(new fusion::ObstacleMultiSensorFusion()); // 更新 fusion_ 的指针值为 ObstacleMultiSensorFusion 类实例指针
+  fusion::ObstacleMultiSensorFusionParam param;  // 障碍物多传感器融合参数
+  param.main_sensor = fusion_main_sensor_; // 障碍物多传感器融合参数——主传感器：velodyne128，front_6mm，front_12mm
+  param.fusion_method = fusion_method_; // 障碍物多传感器融合参数——融合方法：ProbabilisticFusion
   ACHECK(fusion_->Init(param)) << "Failed to init ObstacleMultiSensorFusion";
 
   if (FLAGS_obs_enable_hdmap_input && object_in_roi_check_) {
@@ -94,7 +94,7 @@ bool FusionComponent::InitAlgorithmPlugin() {
 }
 
 bool FusionComponent::InternalProc(
-    const std::shared_ptr<SensorFrameMessage const>& in_message,
+    const std::shared_ptr<SensorFrameMessage const>& in_message,// SensorFrame：一帧所有的目标(分为前景和后景)
     std::shared_ptr<PerceptionObstacles> out_message,
     std::shared_ptr<SensorFrameMessage> viz_message) {
   {
@@ -124,7 +124,7 @@ bool FusionComponent::InternalProc(
   frame->timestamp = in_message->timestamp_;
 
   std::vector<base::ObjectPtr> fused_objects;
-  if (!fusion_->Process(frame, &fused_objects)) {
+  if (!fusion_->Process(frame, &fused_objects)) { // modules/perception/fusion/app/obstacle_multi_sensor_fusion.cc
     AERROR << "Failed to call fusion plugin.";
     return false;
   }

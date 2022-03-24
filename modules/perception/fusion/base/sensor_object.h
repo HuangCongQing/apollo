@@ -29,6 +29,7 @@ namespace apollo {
 namespace perception {
 namespace fusion {
 
+// SensorObject：单个目标
 class SensorObject {
  public:
   SensorObject() = delete;
@@ -68,6 +69,7 @@ class SensorObject {
 typedef std::shared_ptr<SensorObject> SensorObjectPtr;
 typedef std::shared_ptr<const SensorObject> SensorObjectConstPtr;
 
+// 融合障碍物
 class FusedObject {
  public:
   FusedObject();

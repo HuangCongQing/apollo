@@ -78,7 +78,7 @@ bool RecognitionComponent::InitAlgorithmPlugin() {
   return true;
 }
 
-// 识别&跟踪===========================main
+// 识别&lidar跟踪===========================main
 bool RecognitionComponent::InternalProc(
     const std::shared_ptr<const LidarFrameMessage>& in_message,
     const std::shared_ptr<SensorFrameMessage>& out_message) {

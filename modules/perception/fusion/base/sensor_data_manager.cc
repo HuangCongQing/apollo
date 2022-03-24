@@ -99,6 +99,7 @@ void SensorDataManager::GetLatestFrames(
   }
 
   frames->clear();
+  // 遍历不同的传感器sensor
   for (auto it = sensors_.begin(); it != sensors_.end(); ++it) {
     SensorFramePtr frame = it->second->QueryLatestFrame(timestamp);
     if (frame != nullptr) {
@@ -109,7 +110,7 @@ void SensorDataManager::GetLatestFrames(
   if (frames->empty()) {
     return;
   }
-
+  // 根据时间戳排序v
   std::sort(frames->begin(), frames->end(),
             [](const SensorFramePtr& p1, const SensorFramePtr& p2) {
               return p1->GetTimestamp() < p2->GetTimestamp();

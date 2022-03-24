@@ -51,7 +51,7 @@ bool HMTrackersObjectsAssociation::Associate(
   // sensor观测
   const std::vector<SensorObjectPtr>& sensor_objects =
       sensor_measurements->GetForegroundObjects();
-  // tracks航迹
+  // tracks航迹（融合结果）
   const std::vector<TrackPtr>& fusion_tracks = scene->GetForegroundTracks(); // tracks航迹
   // 关联矩阵
   std::vector<std::vector<double>> association_mat;
@@ -75,7 +75,7 @@ bool HMTrackersObjectsAssociation::Associate(
   //重置之前的计算距离
   track_object_distance_.ResetProjectionCache(measurement_sensor_id,
                                               measurement_timestamp);
-  //前毫米波雷达不进行ID匹配 
+  //前毫米波雷达不进行ID匹配
   bool do_nothing = (sensor_objects[0]->GetSensorId() == "radar_front");
   // 1.ID进行匹配,track之前匹配过的障碍物ID，得到association_result的三个结果，============================================================
   //   存储的是fusion_tracks和sensor_objects的index
@@ -102,7 +102,7 @@ bool HMTrackersObjectsAssociation::Associate(
   association_result->measurement2track_dist.assign(num_measurement, 0);
 
   // g:global l:local 两个转换便于查询观测和航迹的index
-  // track_ind_l2g[i]=track_index, track_ind_g2l[track_index]=i. 
+  // track_ind_l2g[i]=track_index, track_ind_g2l[track_index]=i.
   std::vector<int> track_ind_g2l;
   track_ind_g2l.resize(num_track, -1);
   // track_ind_l2g
@@ -121,7 +121,7 @@ bool HMTrackersObjectsAssociation::Associate(
     measurement_ind_g2l[association_result->unassigned_measurements[i]] =
         static_cast<int>(i);
   }
-  // 
+  //
   std::vector<size_t> track_ind_l2g = association_result->unassigned_tracks;
 
   // 校验，未分配航迹或未分配观测为空，则结束
@@ -130,9 +130,9 @@ bool HMTrackersObjectsAssociation::Associate(
     return true;
   }
 
-  // 3.最小化匹配(匈牙利匹配)=========================================================================  
+  // 3.最小化匹配(匈牙利匹配)=========================================================================
   // g:global l:local 两个转换便于查询观测和航迹的index
-  // track_ind_l2g[i]=track_index, track_ind_g2l[track_index]=i. 
+  // track_ind_l2g[i]=track_index, track_ind_g2l[track_index]=i.
   // 关联矩阵对应的是i，通过l2g转换为index，插入到对应的三个vector中
   bool state = MinimizeAssignment(
       association_mat, track_ind_l2g, measurement_ind_l2g,
@@ -205,9 +205,9 @@ void HMTrackersObjectsAssociation::PostIdAssign(
   }
 }
 
-// 3.最小化匹配(匈牙利匹配)=========================================================================  
+// 3.最小化匹配(匈牙利匹配) Munkres算法（匈牙利算法）修改版本=========================================================================
 // g:global l:local 两个转换便于查询观测和航迹的index
-// track_ind_l2g[i]=track_index, track_ind_g2l[track_index]=i. 
+// track_ind_l2g[i]=track_index, track_ind_g2l[track_index]=i.
 // 关联矩阵对应的是i，通过l2g转换为index，插入到对应的三个vector中
 bool HMTrackersObjectsAssociation::MinimizeAssignment(
     const std::vector<std::vector<double>>& association_mat,
@@ -399,7 +399,7 @@ void HMTrackersObjectsAssociation::ComputeAssociationDistanceMat(
 */
 void HMTrackersObjectsAssociation::IdAssign(
     const std::vector<TrackPtr>& fusion_tracks,
-    const std::vector<SensorObjectPtr>& sensor_objects, // 
+    const std::vector<SensorObjectPtr>& sensor_objects, //
     std::vector<TrackMeasurmentPair>* assignments,
     std::vector<size_t>* unassigned_fusion_tracks,
     std::vector<size_t>* unassigned_sensor_objects, bool do_nothing,
@@ -437,7 +437,7 @@ void HMTrackersObjectsAssociation::IdAssign(
       continue;
     }
     // 匹配track中obj,[obj_id,track_index]存入到map中
-    sensor_id_2_track_ind[obj->GetBaseObject()->track_id] = static_cast<int>(i); // 
+    sensor_id_2_track_ind[obj->GetBaseObject()->track_id] = static_cast<int>(i); //
     // 举例: Sensorid 2 track ind
     // (trackId, track1/2/3)
     // (3,1)

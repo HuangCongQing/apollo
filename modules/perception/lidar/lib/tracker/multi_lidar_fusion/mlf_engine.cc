@@ -95,7 +95,7 @@ bool MlfEngine::Track(const MultiTargetTrackerOptions& options,
   // 2. split fg and bg objects, and transform to tracked objects
   SplitAndTransformToTrackedObjects(frame->segmented_objects,
                                     frame->sensor_info);
-  // 3. assign tracked objects to tracks
+  // 3. assign tracked objects to tracks 匹配===========================
   MlfTrackObjectMatcherOptions match_options;
   TrackObjectMatchAndAssign(match_options, foreground_objects_, "foreground",
                             &foreground_track_data_);
@@ -123,6 +123,7 @@ bool MlfEngine::Track(const MultiTargetTrackerOptions& options,
   return true;
 }
 
+// 分离前后景，并且 transform to tracked objects
 void MlfEngine::SplitAndTransformToTrackedObjects(
     const std::vector<base::ObjectPtr>& objects,
     const base::SensorInfo& sensor_info) {

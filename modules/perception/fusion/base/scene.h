@@ -26,6 +26,8 @@ namespace apollo {
 namespace perception {
 namespace fusion {
 
+// 得到 & 添加删减前后景
+//Scene代表trackanagments，管理track
 class Scene {
  public:
   Scene();

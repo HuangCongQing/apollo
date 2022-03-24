@@ -78,7 +78,7 @@ bool ProbabilisticFusion::Init(const FusionInitOptions& init_options) {
   Track::SetMaxCameraInvisiblePeriod(params.max_camera_invisible_period());
   Sensor::SetMaxCachedFrameNumber(params.max_cached_frame_num());
 
-  scenes_.reset(new Scene());
+  scenes_.reset(new Scene()); //// 初始化用于管理场景的共享智能指针，场景中包含所有的前景航迹与背景航迹
   if (params_.data_association_method == "HMAssociation") {
     matcher_.reset(new HMTrackersObjectsAssociation());
   } else {
@@ -115,13 +115,13 @@ bool ProbabilisticFusion::Init(const FusionInitOptions& init_options) {
 // Sensor：历史十帧数据
 // SensorDataManager：所有传感器的历史十帧数据
 bool ProbabilisticFusion::Fuse(const FusionOptions& options,
-                               const base::FrameConstPtr& sensor_frame,
+                               const base::FrameConstPtr& sensor_frame, //一帧数据
                                std::vector<base::ObjectPtr>* fused_objects) {
   if (fused_objects == nullptr) {
     AERROR << "fusion error: fused_objects is nullptr";
     return false;
   }
-  
+
   // SensorDataManager：所有传感器的历史十帧数据
   auto* sensor_data_manager = SensorDataManager::Instance();
   // 1. save frame data 保存数据
@@ -141,7 +141,7 @@ bool ProbabilisticFusion::Fuse(const FusionOptions& options,
     // velodyne128
     bool is_publish_sensor = this->IsPublishSensor(sensor_frame); // 判断是不是main_sensor_
     if (is_publish_sensor) {
-      started_ = true;
+      started_ = true; // 主雷达设置为true
     }
 
     // 有lidar进来才开始save
@@ -150,7 +150,7 @@ bool ProbabilisticFusion::Fuse(const FusionOptions& options,
             << ", obj_cnt : " << sensor_frame->objects.size() << ", "
             << FORMAT_TIMESTAMP(sensor_frame->timestamp);
       // 传感器数据管理，保存最新数据到一个map结构中，map为每个sensor对应的数据队列
-      sensor_data_manager->AddSensorMeasurements(sensor_frame);
+      sensor_data_manager->AddSensorMeasurements(sensor_frame); // lidar/radar
     }
 
     // 不是主传感器就return
@@ -162,16 +162,16 @@ bool ProbabilisticFusion::Fuse(const FusionOptions& options,
   // 2. query related sensor_frames for fusion
   // 查询所有传感器的最新一帧数据，插入到frames中，按时间顺序排序好。
   std::lock_guard<std::mutex> fuse_lock(fuse_mutex_);
-  double fusion_time = sensor_frame->timestamp;
+  double fusion_time = sensor_frame->timestamp; // 得到时间戳
   std::vector<SensorFramePtr> frames; // 一帧所有的目标
   // 查询所有传感器的最新一帧数据，插入到frames中，按时间顺序排序好。============
-  sensor_data_manager->GetLatestFrames(fusion_time, &frames);
+  sensor_data_manager->GetLatestFrames(fusion_time, &frames); //vector<一帧所有的目标(分为前景和后景)>
   AINFO << "Get " << frames.size() << " related frames for fusion";
 
   // 3. perform fusion on related frames
   // 序贯滤波的定义，是对同一时刻的N个传感器按序号做序贯更新，做一遍预测后，N遍更新航迹
   // 按时间先后融合最新一帧，进行处理======
-  for (const auto& frame : frames) {
+  for (const auto& frame : frames) { // lidar radar camera
     FuseFrame(frame); // 开始融合了!!!!
   }
 
@@ -209,9 +209,9 @@ bool ProbabilisticFusion::IsPublishSensor(
 // 6.3 RemoveLostTrack函数
 void ProbabilisticFusion::FuseFrame(const SensorFramePtr& frame) {
   AINFO << "Fusing frame: " << frame->GetSensorId()
-        << ", foreground_object_number: "
+        << ", 前景foreground_object_number: "
         << frame->GetForegroundObjects().size()
-        << ", background_object_number: "
+        << ", 后景background_object_number: "
         << frame->GetBackgroundObjects().size()
         << ", timestamp: " << FORMAT_TIMESTAMP(frame->GetTimestamp());
   // 01 融合前景
@@ -239,7 +239,7 @@ void ProbabilisticFusion::FuseForegroundTrack(const SensorFramePtr& frame) {
       association_result.assignments;
   this->UpdateAssignedTracks(frame, assignments);
   PERF_BLOCK_END_WITH_INDICATOR(indicator, "update_assigned_track");
-  
+
   // 1.3更新未匹配的航迹track
   const std::vector<size_t>& unassigned_track_inds =
       association_result.unassigned_tracks;
@@ -314,13 +314,13 @@ void ProbabilisticFusion::CreateNewTracks(
     // 新建track，并初始化,添加到scenes_中
     TrackPtr track = TrackPool::Instance().Get();
     track->Initialize(frame->GetForegroundObjects()[obj_ind]); //主要是最后的两个Init函数======================
-    scenes_->AddForegroundTrack(track);
+    scenes_->AddForegroundTrack(track); //// 将新的前景航迹添加到场景的背景航迹列表中
 
     ADEBUG << "object id: "
            << frame->GetForegroundObjects()[obj_ind]->GetBaseObject()->track_id
            << ", create new track: " << track->GetTrackId();
 
-    // PbfTracker：新建tracker，track初始化tracker，tracker插入到航迹集合trackers_中 
+    // PbfTracker：新建tracker，track初始化tracker，tracker插入到航迹集合trackers_中
     if (params_.tracker_method == "PbfTracker") {
       std::shared_ptr<BaseTracker> tracker;
       tracker.reset(new PbfTracker());
@@ -333,7 +333,7 @@ void ProbabilisticFusion::CreateNewTracks(
 // 02 融合背景========
 void ProbabilisticFusion::FusebackgroundTrack(const SensorFramePtr& frame) {
   // 1. association
-  size_t track_size = scenes_->GetBackgroundTracks().size();
+  size_t track_size = scenes_->GetBackgroundTracks().size(); // // 所有的背景航迹
   size_t obj_size = frame->GetBackgroundObjects().size();
   std::map<int, size_t> local_id_2_track_ind_map;
   std::vector<bool> track_tag(track_size, false);
@@ -382,7 +382,7 @@ void ProbabilisticFusion::FusebackgroundTrack(const SensorFramePtr& frame) {
     if (!object_tag[i]) {
       TrackPtr track = TrackPool::Instance().Get();
       track->Initialize(frame->GetBackgroundObjects()[i], true);
-      scenes_->AddBackgroundTrack(track);
+      scenes_->AddBackgroundTrack(track); //添加背景
     }
   }
 }
@@ -391,23 +391,23 @@ void ProbabilisticFusion::FusebackgroundTrack(const SensorFramePtr& frame) {
 // 前景航迹和背景航迹，当该航迹所有匹配的传感器都没有更新过，移除掉该航迹
 void ProbabilisticFusion::RemoveLostTrack() {
   // need to remove tracker at the same time
-  size_t foreground_track_count = 0;
-  std::vector<TrackPtr>& foreground_tracks = scenes_->GetForegroundTracks();
+  size_t foreground_track_count = 0; // 存活的前景航迹计数，也代表了下一个存活的前景航迹的新的索引
+  std::vector<TrackPtr>& foreground_tracks = scenes_->GetForegroundTracks(); // 当强前景航迹
   for (size_t i = 0; i < foreground_tracks.size(); ++i) {
     // track里面所有匹配过的传感器是否存在
     // 不存在就删掉，不能直接erase？
-    if (foreground_tracks[i]->IsAlive()) {
-      if (i != foreground_track_count) {
-        foreground_tracks[foreground_track_count] = foreground_tracks[i];
-        trackers_[foreground_track_count] = trackers_[i];
+    if (foreground_tracks[i]->IsAlive()) {  // 对于每一个前景航迹
+      if (i != foreground_track_count) {  // 当前存活的前景航迹之前存在失活航迹
+        foreground_tracks[foreground_track_count] = foreground_tracks[i]; // 将当前存活的前景航迹移动到前景航迹列表新的位置
+        trackers_[foreground_track_count] = trackers_[i];// 将当前存活的前景航迹对应的 tracker 移动到 tracker 列表新的位置
       }
-      foreground_track_count++;
+      foreground_track_count++; // 存活的前景航迹 数量
     }
   }
   AINFO << "Remove " << foreground_tracks.size() - foreground_track_count
         << " foreground tracks";
-  foreground_tracks.resize(foreground_track_count);
-  trackers_.resize(foreground_track_count);
+  foreground_tracks.resize(foreground_track_count); // 析构前景航迹列表尾部多余的元素
+  trackers_.resize(foreground_track_count); // 析构 tracker 列表尾部多余的元素
 
   // only need to remove frame track
   size_t background_track_count = 0;

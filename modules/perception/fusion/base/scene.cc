@@ -22,7 +22,7 @@ namespace fusion {
 Scene::Scene() {}
 
 Scene::~Scene() {}
-
+// 添加前景和后景的track
 void Scene::AddForegroundTrack(TrackPtr track) {
   foreground_tracks_.push_back(track);
 }

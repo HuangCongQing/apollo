@@ -49,6 +49,7 @@ class SensorDataManager {
   void GetLatestSensorFrames(double timestamp, const std::string& sensor_id,
                              std::vector<SensorFramePtr>* frames) const;
 
+  // 得到最近的Frames
   void GetLatestFrames(double timestamp,
                        std::vector<SensorFramePtr>* frames) const;
 

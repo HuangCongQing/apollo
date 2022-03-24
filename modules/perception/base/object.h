@@ -82,7 +82,7 @@ struct alignas(16) Object {
 
   // tracking information
   // @brief track id, required
-  int track_id = -1;
+  int track_id = -1; // id
   // @brief velocity of the object, required
   Eigen::Vector3f velocity = Eigen::Vector3f(0, 0, 0);
   // @brief covariance matrix of the velocity uncertainty, required

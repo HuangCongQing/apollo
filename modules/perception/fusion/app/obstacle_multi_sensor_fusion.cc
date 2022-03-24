@@ -39,7 +39,7 @@ bool ObstacleMultiSensorFusion::Init(
 bool ObstacleMultiSensorFusion::Process(const base::FrameConstPtr& frame,
                                         std::vector<base::ObjectPtr>* objects) {
   FusionOptions options;
-  return fusion_->Fuse(options, frame, objects);
+  return fusion_->Fuse(options, frame, objects); // modules/perception/fusion/lib/fusion_system/probabilistic_fusion/probabilistic_fusion.cc
 }
 
 }  // namespace fusion

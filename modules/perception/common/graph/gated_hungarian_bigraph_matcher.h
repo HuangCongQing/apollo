@@ -99,7 +99,7 @@ class GatedHungarianMatcher {
       std::vector<std::pair<size_t, size_t>>* local_assignments);
 
   /* Hungarian optimizer */
-  // 
+  //
   HungarianOptimizer<T> optimizer_;
 
   /* global costs matrix */
@@ -132,7 +132,7 @@ void GatedHungarianMatcher<T>::Match(
         unassigned_cols);
 }
 
-// 匈牙利匹配=========================================================================================================================main
+// 匈牙利匹配 main=========================================================================================================================main
 // Apollo融合里用的是Munkres算法（匈牙利算法）修改版本
 // 将关联矩阵costs转换成二分图，计算连通子图，对子图计算匈牙利匹配
 template <typename T>
@@ -150,7 +150,7 @@ void GatedHungarianMatcher<T>::Match(
   opt_flag_ = opt_flag; //OPTMIN
   bound_value_ = bound_value; //=100
   assignments_ptr_ = assignments;
-  
+
   //初始化is_valid_cost_函数，object和tracker的欧氏距离小于4米有效
   MatchInit();
 
@@ -177,7 +177,7 @@ void GatedHungarianMatcher<T>::Match(
   this->GenerateUnassignedData(unassigned_rows, unassigned_cols);
 }
 
-// step1: 
+// step1:
 template <typename T>
 void GatedHungarianMatcher<T>::MatchInit() {
   /* get number of rows & cols */
@@ -221,7 +221,7 @@ void GatedHungarianMatcher<T>::ComputeConnectedComponents(
   std::vector<std::vector<int>> components;
   // 2 联通子图分析
   ConnectedComponentAnalysis(nb_graph, &components); // modules/perception/common/graph/connected_component_analysis.cc
-  
+
   // 3 构建row_components / col_components 将子图映射回二分图（航迹和量测）的id号。
   row_components->clear();
   row_components->resize(components.size());
@@ -339,7 +339,7 @@ void GatedHungarianMatcher<T>::OptimizeAdapter(
   CHECK_NOTNULL(local_assignments);
   // modules/perception/common/graph/hungarian_optimizer.h
   if (opt_flag_ == OptimizeFlag::OPTMAX) {
-    optimizer_.Maximize(local_assignments);
+    optimizer_.Maximize(local_assignments); // modules/perception/common/graph/hungarian_optimizer.h
   } else {
     optimizer_.Minimize(local_assignments);
   }
