@@ -24,6 +24,7 @@ float PbfShapeFusion::s_camera_radar_time_diff_th_ = 0.3f;
 
 bool PbfShapeFusion::Init() { return true; }
 
+//形状
 void PbfShapeFusion::UpdateWithMeasurement(const SensorObjectPtr measurement,
                                            double target_timestamp) {
   // base::SensorType sensor_type = measurement->GetSensorType();

@@ -234,7 +234,7 @@ void ProbabilisticFusion::FuseForegroundTrack(const SensorFramePtr& frame) {
   matcher_->Associate(options, frame, scenes_, &association_result);
   PERF_BLOCK_END_WITH_INDICATOR(indicator, "association");
 
-  // 1.2更新匹配的航迹
+  // 1.2更新匹配的航迹(四块更新)========================================
   const std::vector<TrackMeasurmentPair>& assignments =
       association_result.assignments;
   this->UpdateAssignedTracks(frame, assignments);
