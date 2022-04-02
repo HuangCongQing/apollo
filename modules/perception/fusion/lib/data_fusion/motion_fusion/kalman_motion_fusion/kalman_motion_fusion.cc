@@ -354,7 +354,7 @@ void KalmanMotionFusion::MotionFusionWithMeasurement(
 }
 
 void KalmanMotionFusion::UpdateMotionState() {
-  base::ObjectPtr obj = track_ref_->GetFusedObject()->GetBaseObject();
+  base::ObjectPtr obj = track_ref_->GetFusedObject()->GetBaseObject();  // 融合障碍物结果
   obj->anchor_point = fused_anchor_point_.cast<double>();
   // it seems that it is the only place to update the FusedObject's `center`
   // who will be used in CollectFusedObjects
@@ -414,7 +414,7 @@ void KalmanMotionFusion::RewardRMatrix(const base::SensorType& sensor_type,
 
   // else if 观测是radar或者camera：
   //     设置协方差：位置和速度乘以2
-      
+
   //     if VELODYNE_64的历史观测长度 > 0:
   //         速度协方差=1000
   // 加速度协方差×0.5

@@ -124,13 +124,13 @@ void PbfTracker::UpdateWithMeasurement(const TrackerOptions& options,
          << sensor_id << "..." << measurement->GetBaseObject()->track_id << "@"
          << FORMAT_TIMESTAMP(measurement->GetTimestamp());
   // options.match_distance = 0
-  // 1 DstExistenceFusion
+  // 1 DstExistenceFusion（更新tracker的存在性）
   // 证据推理（DS theory）更新tracker的存在性modules/perception/fusion/lib/data_fusion/existence_fusion/dst_existence_fusion/dst_existence_fusion.cc
   existence_fusion_->UpdateWithMeasurement(measurement, target_timestamp,
                                            options.match_distance);
-  
+
   // 2 * KalmanMotionFusion!!!!!motion_fusion/kalman_motion_fusion/kalman_motion_fusion.cc=======================================================================
-  // 鲁棒卡尔曼滤波更新tracker的运动属性 
+  // 鲁棒卡尔曼滤波更新tracker的运动属性
   // trackers_[track_ind]->UpdateWithMeasurement(frame->GetForegroundObjects()[obj_ind], frame->GetTimestamp());
   motion_fusion_->UpdateWithMeasurement(measurement, target_timestamp);
 
@@ -138,7 +138,7 @@ void PbfTracker::UpdateWithMeasurement(const TrackerOptions& options,
   // 更新tracker的形状
   shape_fusion_->UpdateWithMeasurement(measurement, target_timestamp);
 
-  // 4 * DstTypeFusion!!!!!=============================================================================
+  // 4 * DstTypeFusion!!!!!（更新tracker的属性）=============================================================================
   // modules/perception/fusion/lib/data_fusion/type_fusion/dst_type_fusion/dst_type_fusion.cc
   // 证据推理（DS theory）更新tracker的属性
   type_fusion_->UpdateWithMeasurement(measurement, target_timestamp);

@@ -461,7 +461,7 @@ void ProbabilisticFusion::CollectFusedObjects(
 void ProbabilisticFusion::CollectObjectsByTrack(
     double timestamp, const TrackPtr& track,
     std::vector<base::ObjectPtr>* fused_objects) {
-  const FusedObjectPtr& fused_object = track->GetFusedObject();
+  const FusedObjectPtr& fused_object = track->GetFusedObject(); // 融合障碍物结果
   base::ObjectPtr obj = base::ObjectPool::Instance().Get();
   *obj = *(fused_object->GetBaseObject());
   const SensorId2ObjectMap& lidar_measurements = track->GetLidarObjects();

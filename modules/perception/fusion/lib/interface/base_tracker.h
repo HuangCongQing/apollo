@@ -54,7 +54,7 @@ class BaseTracker {
   virtual std::string Name() const = 0;
 
  protected:
-  TrackPtr track_ = nullptr;
+  TrackPtr track_ = nullptr; // 基于track_
 };
 
 }  // namespace fusion

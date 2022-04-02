@@ -48,7 +48,7 @@ class BaseShapeFusion {
   virtual std::string Name() const = 0;
 
  protected:
-  TrackPtr track_ref_;
+  TrackPtr track_ref_; //
 };
 
 }  // namespace fusion
