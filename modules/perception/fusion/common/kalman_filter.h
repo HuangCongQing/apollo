@@ -38,6 +38,7 @@ class KalmanFilter : public BaseFilter {
   //             pre moment to current moment
   // @params[IN] env_uncertainty_matrix: the uncertainty brought by
   //             the environment when predict.
+  // 预测
   bool Predict(const Eigen::MatrixXd &transform_matrix,
                const Eigen::MatrixXd &env_uncertainty_matrix);
 
@@ -45,6 +46,7 @@ class KalmanFilter : public BaseFilter {
   // @params[IN] cur_observation: the observationin in current time
   // @params[IN] cur_observation_uncertainty: the uncertainty of
   //             the observation in current time.
+  // 更新
   bool Correct(const Eigen::VectorXd &cur_observation,
                const Eigen::MatrixXd &cur_observation_uncertainty);
 

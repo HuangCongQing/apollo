@@ -40,7 +40,7 @@ bool KalmanFilter::Init(const Eigen::VectorXd &initial_belief_states,
     return false;
   }
 
-  global_states_ = initial_belief_states;
+  global_states_ = initial_belief_states; //从
   global_uncertainty_ = initial_uncertainty;
   prior_global_states_ = global_states_;
 
@@ -82,7 +82,7 @@ bool KalmanFilter::Predict(const Eigen::MatrixXd &transform_matrix,
     AERROR << "the cols of env uncertainty should be equal to state_num";
     return false;
   }
-  transform_matrix_ = transform_matrix;
+  transform_matrix_ = transform_matrix; //误差Q
   env_uncertainty_ = env_uncertainty_matrix;
   //预测当前值 X_ = F * X
   global_states_ = transform_matrix_ * global_states_;
@@ -93,7 +93,7 @@ bool KalmanFilter::Predict(const Eigen::MatrixXd &transform_matrix,
   return true;
 }
 
-// 3.8 卡尔曼增益更新
+// 3.8 更新update
 bool KalmanFilter::Correct(const Eigen::VectorXd &cur_observation,
                            const Eigen::MatrixXd &cur_observation_uncertainty) {
   if (!init_) {
@@ -124,7 +124,7 @@ bool KalmanFilter::Correct(const Eigen::VectorXd &cur_observation,
                  (c_matrix_ * global_uncertainty_ * c_matrix_.transpose() +
                   cur_observation_uncertainty_)
                      .inverse();
-  //  修正估计（最终结果） x_t = x_t + K(z_t - H*x_t)
+  //  修正估计（最终结果） x_t = x_t + K(z_t - H*x_t)====================
   global_states_ = global_states_ + kalman_gain_ * (cur_observation_ -
                                                     c_matrix_ * global_states_);
   Eigen::MatrixXd tmp_identity;

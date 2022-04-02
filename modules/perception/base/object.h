@@ -64,7 +64,7 @@ struct alignas(16) Object {
   Eigen::Vector3f size = Eigen::Vector3f(0, 0, 0);
   // @brief size variance, required
   Eigen::Vector3f size_variance = Eigen::Vector3f(0, 0, 0);
-  // @brief anchor point, required
+  // @brief anchor point, required？？？？？？？？？？？？？？？？？？？？？？//
   Eigen::Vector3d anchor_point = Eigen::Vector3d(0, 0, 0);
 
   // @brief object type, required

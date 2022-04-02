@@ -38,36 +38,48 @@ bool KalmanMotionFusion::Init() {
   if (track_ref_ == nullptr) {
     return false;
   }
+  // 对这个航迹进行初始化
   if (track_ref_->GetLatestLidarObject() != nullptr) {
-    filter_init_ = InitFilter(track_ref_->GetLatestLidarObject());
+    filter_init_ = InitFilter(track_ref_->GetLatestLidarObject()); // 得到最近的Lidar障碍物
   } else if (track_ref_->GetLatestRadarObject() != nullptr) {
-    filter_init_ = InitFilter(track_ref_->GetLatestRadarObject());
+    filter_init_ = InitFilter(track_ref_->GetLatestRadarObject());// 如果没有lidar，得到最近的Radar障碍物
   }
   return true;
 }
 
+// 输入为最新lidar/radar的历史观测  track_ref_->GetLatestLidarObject()==========
 bool KalmanMotionFusion::InitFilter(const SensorObjectConstPtr& sensor_object) {
+  // 加速度故障
   const std::vector<bool> gain_break_down = {0, 0, 0, 0, 1, 1};
+  // 速度故障
   const std::vector<bool> value_break_down = {0, 0, 1, 1, 0, 0};
+  // 故障阈值，加速度2 速度0.05
   const float gain_break_down_threshold = 2.0f;
   const float value_break_down_threshold = 0.05f;
+  // 协方差矩阵P(预测协方差矩阵)=========================================
   Eigen::MatrixXd global_uncertainty;
+  // 状态X(预测当前值)=================================================
   Eigen::VectorXd global_states;
   // global_states: center(2), velocity(2), acceleration(2)
   global_uncertainty.setIdentity(6, 6);
   global_states.setZero(6, 1);
 
+  // 融合锚点
   fused_anchor_point_ =
       sensor_object->GetBaseObject()->anchor_point.cast<double>();
+  // 融合速度
   fused_velocity_ = sensor_object->GetBaseObject()->velocity.cast<double>();
+  // 融合加速度
   fused_acceleration_ = Eigen::Vector3d(0, 0, 0);
 
-  global_states(0) = sensor_object->GetBaseObject()->anchor_point(0);
+  // 设置X参数（这些都是需要更新的参数=================================）
+  global_states(0) = sensor_object->GetBaseObject()->anchor_point(0);//？？？
   global_states(1) = sensor_object->GetBaseObject()->anchor_point(1);
-  global_states(2) = sensor_object->GetBaseObject()->velocity(0);
+  global_states(2) = sensor_object->GetBaseObject()->velocity(0);// 速度
   global_states(3) = sensor_object->GetBaseObject()->velocity(1);
-  global_states(4) = 0.0;
+  global_states(4) = 0.0;                                       //加速度
   global_states(5) = 0.0;
+  // 设置P
   global_uncertainty.topLeftCorner(2, 2) =
       sensor_object->GetBaseObject()
           ->center_uncertainty.topLeftCorner(2, 2)
@@ -81,15 +93,18 @@ bool KalmanMotionFusion::InitFilter(const SensorObjectConstPtr& sensor_object) {
           ->velocity_uncertainty.topLeftCorner(2, 2)
           .cast<double>();
 
+  // 保存到历史观测数据中，用于后续计算加速度
   if (sensor_object->GetBaseObject()->velocity_converged) {
     UpdateSensorHistory(sensor_object->GetSensorType(),
                         sensor_object->GetBaseObject()->velocity.cast<double>(),
                         sensor_object->GetTimestamp());
   }
 
-  if (!kalman_filter_.Init(global_states, global_uncertainty)) {
+  // 状态初始化
+  if (!kalman_filter_.Init(global_states, global_uncertainty)) { //传参到kalman_filter.cc===============
     return false;
   }
+  // 故障初始化
   if (!kalman_filter_.SetGainBreakdownThresh(gain_break_down,
                                              gain_break_down_threshold) ||
       !kalman_filter_.SetValueBreakdownThresh(value_break_down,
@@ -100,6 +115,7 @@ bool KalmanMotionFusion::InitFilter(const SensorObjectConstPtr& sensor_object) {
   return true;
 }
 
+//
 void KalmanMotionFusion::GetStates(Eigen::Vector3d* anchor_point,
                                    Eigen::Vector3d* velocity) {
   *anchor_point = fused_anchor_point_;
@@ -128,17 +144,19 @@ void KalmanMotionFusion::UpdateWithoutMeasurement(const std::string& sensor_id,
   // Originally, we would reset filter_init_ to false, when there is no
   // valid lidar & radar measurement. now, as the quality of estimation
   // of camera improved, this step is not needed.
-  UpdateMotionState();
+  UpdateMotionState(); //更新状态=======================
 }
 
 // 卡尔曼滤波融合KalmanMotionFusion!!!!!=========================================================main主函数
 void KalmanMotionFusion::UpdateWithMeasurement(
     const SensorObjectConstPtr& measurement, double target_timestamp) {
+  // 状态值
   fused_anchor_point_ =
       measurement->GetBaseObject()->anchor_point.cast<double>();
   fused_velocity_ = measurement->GetBaseObject()->velocity.cast<double>();
   fused_acceleration_ =
       measurement->GetBaseObject()->acceleration.cast<double>();
+  // 协方差
   center_uncertainty_ = measurement->GetBaseObject()->center_uncertainty;
   velo_uncertainty_ = measurement->GetBaseObject()->velocity_uncertainty;
   acc_uncertainty_ = measurement->GetBaseObject()->acceleration_uncertainty;
@@ -153,9 +171,10 @@ void KalmanMotionFusion::UpdateWithMeasurement(
   SensorObjectConstPtr radar_ptr = track_ref_->GetLatestRadarObject();
   SensorObjectConstPtr camera_ptr = track_ref_->GetLatestCameraObject();
   // Motion fusion
+  // 卡尔曼滤波预测和更新
   if (is_lidar || is_radar || is_camera) {
     if (filter_init_) {
-      MotionFusionWithMeasurement(measurement, time_diff); // 入口=====================
+      MotionFusionWithMeasurement(measurement, time_diff); // 预测更新入口================================
     } else {
       filter_init_ = InitFilter(measurement);
     }
@@ -166,6 +185,7 @@ void KalmanMotionFusion::UpdateWithMeasurement(
       return;
     }
   }
+  // 根据传感器，读卡尔曼滤波器的状态值，跟Apollo特性相关
   // shape & location fusion
   if (is_lidar || is_radar) {
     if (is_lidar || (is_radar && lidar_ptr == nullptr)) {
@@ -173,7 +193,7 @@ void KalmanMotionFusion::UpdateWithMeasurement(
       //    , use fused velocity
       // 2) measurement is radar, and has no history lidar:
       // use radar's anchor point, use fused velocity
-      fused_velocity_(0) = kalman_filter_.GetStates()(2);
+      fused_velocity_(0) = kalman_filter_.GetStates()(2); // 修改measurement的一些状态
       fused_velocity_(1) = kalman_filter_.GetStates()(3);
     }
     if (is_radar && lidar_ptr != nullptr) {
@@ -215,7 +235,7 @@ void KalmanMotionFusion::UpdateWithMeasurement(
   // Originally, we would reset filter_init_ to false, when there is no
   // valid lidar & radar measurement. now, as the quality of estimation
   // of camera improved, this step is not needed.
-  UpdateMotionState();
+  UpdateMotionState(); // 更新tracker的融合障碍物属性===========================
 }
 
 void KalmanMotionFusion::MotionFusionWithoutMeasurement(
@@ -229,7 +249,7 @@ void KalmanMotionFusion::MotionFusionWithoutMeasurement(
   kalman_filter_.Predict(transform_matrix, env_uncertainty);
 }
 
-// 具体实现===============================
+// tracker的运动物理量做卡尔曼滤波处理具体实现===============================
 void KalmanMotionFusion::MotionFusionWithMeasurement(
     const SensorObjectConstPtr& measurement, double time_diff) {
   // we use kalman filter to update our tracker.
@@ -259,9 +279,11 @@ void KalmanMotionFusion::MotionFusionWithMeasurement(
   env_uncertainty *= 0.5;
 
   // 3.1 预测(modules/perception/fusion/common/kalman_filter.cc)
+  // 一步预测
   kalman_filter_.Predict(transform_matrix, env_uncertainty); // 预测当前值和协方差矩阵
 
   // 3.2 计算加速度
+  // 根据最近三帧计算加速度
   // 对camera目标，直接使用卡尔曼滤波一步预测后的加速度。应该是相机目标的加速度测的不准，不信赖其加速度？
   Eigen::Vector3d measured_acceleration = Eigen::Vector3d::Zero();
   measured_acceleration = ComputeAccelerationMeasurement(
@@ -269,16 +291,17 @@ void KalmanMotionFusion::MotionFusionWithMeasurement(
       measurement->GetBaseObject()->velocity.cast<double>(), // 速度
       measurement->GetTimestamp());
 
+  // 观测值
   Eigen::VectorXd observation;
   observation.setZero(6, 1);
-  observation(0) = measurement->GetBaseObject()->center(0);
+  observation(0) = measurement->GetBaseObject()->center(0); //中心点坐标
   observation(1) = measurement->GetBaseObject()->center(1);
-  observation(2) = measurement->GetBaseObject()->velocity(0);
+  observation(2) = measurement->GetBaseObject()->velocity(0); // 速度
   observation(3) = measurement->GetBaseObject()->velocity(1);
-  observation(4) = measured_acceleration(0);
+  observation(4) = measured_acceleration(0); // 加速度
   observation(5) = measured_acceleration(1);
 
-  // 3.3 R矩阵初始化
+  // 3.3 R矩阵初始化（观测噪声协方差矩阵）
   // 使用观测的距离和速度方差更新
   Eigen::MatrixXd r_matrix;
   r_matrix.setIdentity(6, 6);
@@ -329,10 +352,10 @@ void KalmanMotionFusion::MotionFusionWithMeasurement(
          << "," << r_matrix(2, 2) << "," << r_matrix(2, 3) << ","
          << r_matrix(3, 2) << "," << r_matrix(3, 3) << ")";
 
-  // 3.7 解协方差
+  // 3.7 解协方差((modules/perception/fusion/common/kalman_filter.cc))
   // 认为速度和位置互不影响，状态协方差矩阵P（6*6）的(2，0) (2,1) (3,0) (3,1)位置设为0
   kalman_filter_.DeCorrelation(2, 0, 2, 2);
-  // 3.8 卡尔曼更新（输入：）
+  // 3.8 卡尔曼更新（输入：）  实现kalman_filter.cc
   kalman_filter_.Correct(observation, r_matrix);
   // 3.9 修正更新后的加速度和速度
   kalman_filter_.CorrectionBreakdown();
@@ -353,13 +376,14 @@ void KalmanMotionFusion::MotionFusionWithMeasurement(
          << kalman_filter_.GetUncertainty()(3, 3) << ")";
 }
 
+// 最终更新结果送到GetFusedObject==================
 void KalmanMotionFusion::UpdateMotionState() {
   base::ObjectPtr obj = track_ref_->GetFusedObject()->GetBaseObject();  // 融合障碍物结果
   obj->anchor_point = fused_anchor_point_.cast<double>();
   // it seems that it is the only place to update the FusedObject's `center`
   // who will be used in CollectFusedObjects
   obj->center = obj->anchor_point;
-  obj->velocity = fused_velocity_.cast<float>();
+  obj->velocity = fused_velocity_.cast<float>(); // 速度 加速度
   obj->acceleration = fused_acceleration_.cast<float>();
   // Previously, obj velocity uncertainty would be updated according to the
   // uncertainty within kalman filter. however, rewarding strategy within
@@ -369,7 +393,7 @@ void KalmanMotionFusion::UpdateMotionState() {
   // single sensor. THIS IS AS SAME AS 2-1-19-1.
   // a more general probabilisitic method would be try in this week, and
   // codes would be updated after benchmarking.
-  obj->center_uncertainty = center_uncertainty_;
+  obj->center_uncertainty = center_uncertainty_; // 不确定性
   obj->velocity_uncertainty = velo_uncertainty_;
   obj->acceleration_uncertainty = acc_uncertainty_;
 }
@@ -381,16 +405,18 @@ Eigen::VectorXd KalmanMotionFusion::ComputeAccelerationMeasurement(
   Eigen::Vector3d acceleration_measurement = Eigen::Vector3d::Zero();
   // 对camera目标，直接使用卡尔曼滤波一步预测后的加速度
   if (common::SensorManager::Instance()->IsCamera(sensor_type)) {
-    acceleration_measurement(0) = kalman_filter_.GetStates()(4);
+    acceleration_measurement(0) = kalman_filter_.GetStates()(4); //加速度
     acceleration_measurement(1) = kalman_filter_.GetStates()(5);
     return acceleration_measurement;
   }
+  // 该观测传感器保存了有3帧以上
   if (GetSensorHistoryLength(sensor_type) >= s_eval_window_) {
     size_t history_index = GetSensorHistoryIndex(sensor_type, s_eval_window_);
     if (history_index >= history_velocity_.size()) {
       AERROR << "illegal history index";
       return Eigen::Vector3d::Zero();
     }
+    // 最新观测和第一帧的速度差/时间差（隔了两帧？
     acceleration_measurement = velocity - history_velocity_[history_index];
     acceleration_measurement /= (timestamp - history_timestamp_[history_index]);
   }
@@ -421,22 +447,27 @@ void KalmanMotionFusion::RewardRMatrix(const base::SensorType& sensor_type,
   if (sensor_manager->IsLidar(sensor_type)) {
     if (converged) {
       r_matrix->setIdentity();
+      // 收敛则设置协方差：位置和速度0.01，加速度1
       r_matrix->block<4, 4>(0, 0) *= converged_scale;
     } else {
       r_matrix->setIdentity();
+      // 不收敛则设置协方差：位置0.01，速度1000，加速度1
       r_matrix->block<2, 2>(0, 0) *= converged_scale;
       r_matrix->block<2, 2>(2, 2) *= unconverged_scale;
     }
   } else if (sensor_manager->IsRadar(sensor_type) ||
              sensor_manager->IsCamera(sensor_type)) {
+    // 设置协方差：位置和速度乘以2
     r_matrix->block<4, 4>(0, 0) *= 2.0;
     int lidar_history_length =
         GetSensorHistoryLength(base::SensorType::VELODYNE_64);
     if (lidar_history_length > 0) {
+      // 速度协方差=1000
       r_matrix->block<2, 2>(2, 2).setIdentity();
       r_matrix->block<2, 2>(2, 2) *= unconverged_scale;
     }
   }
+  // 加速度协方差×0.5
   r_matrix->block<2, 2>(4, 4) *= 0.5;
 }
 // 3.4 修正观测值
