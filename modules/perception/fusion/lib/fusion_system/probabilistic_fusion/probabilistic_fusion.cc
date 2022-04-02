@@ -207,7 +207,7 @@ bool ProbabilisticFusion::IsPublishSensor(
 // 6.1.4 CreateNewTracks
 // 6.2 FusebackgroundTrack函数
 // 6.3 RemoveLostTrack函数
-void ProbabilisticFusion::FuseFrame(const SensorFramePtr& frame) {
+void ProbabilisticFusion::FuseFrame(const SensorFramePtr& frame) { // frame已经分好前景和后景
   AINFO << "Fusing frame: " << frame->GetSensorId()
         << ", 前景foreground_object_number: "
         << frame->GetForegroundObjects().size()
@@ -231,7 +231,7 @@ void ProbabilisticFusion::FuseForegroundTrack(const SensorFramePtr& frame) {
   // modules/perception/fusion/lib/data_association/hm_data_association/hm_tracks_objects_match.cc
   AssociationOptions options;
   AssociationResult association_result; // 得到association结果
-  matcher_->Associate(options, frame, scenes_, &association_result);
+  matcher_->Associate(options, frame, scenes_, &association_result); // 场景scenes_
   PERF_BLOCK_END_WITH_INDICATOR(indicator, "association");
 
   // 1.2更新匹配的航迹(四块更新)========================================
@@ -269,7 +269,7 @@ void ProbabilisticFusion::UpdateAssignedTracks(
     size_t obj_ind = assignments[i].second; // ??
     // pbf_tracker,观测更新tracker-->data_fusion/tracker/pbf_tracker/pbf_tracker.cc
     trackers_[track_ind]->UpdateWithMeasurement(  // >>>>>>>modules/perception/fusion/lib/data_fusion/tracker/pbf_tracker/pbf_tracker.cc
-        options, frame->GetForegroundObjects()[obj_ind], frame->GetTimestamp());
+        options, frame->GetForegroundObjects()[obj_ind], frame->GetTimestamp()); //更新tracker_状态
   }
 }
 
@@ -288,7 +288,7 @@ void ProbabilisticFusion::UpdateUnassignedTracks(
   for (size_t i = 0; i < unassigned_track_inds.size(); ++i) {
     size_t track_ind = unassigned_track_inds[i];
     trackers_[track_ind]->UpdateWithoutMeasurement( // data_fusion/tracker/pbf_tracker/pbf_tracker.cc
-        options, sensor_id, frame->GetTimestamp(), frame->GetTimestamp());
+        options, sensor_id, frame->GetTimestamp(), frame->GetTimestamp()); //更新tracker_状态
   }
 }
 
@@ -392,7 +392,7 @@ void ProbabilisticFusion::FusebackgroundTrack(const SensorFramePtr& frame) {
 void ProbabilisticFusion::RemoveLostTrack() {
   // need to remove tracker at the same time
   size_t foreground_track_count = 0; // 存活的前景航迹计数，也代表了下一个存活的前景航迹的新的索引
-  std::vector<TrackPtr>& foreground_tracks = scenes_->GetForegroundTracks(); // 当强前景航迹
+  std::vector<TrackPtr>& foreground_tracks = scenes_->GetForegroundTracks(); // // 得到scenes的当前背景航迹
   for (size_t i = 0; i < foreground_tracks.size(); ++i) {
     // track里面所有匹配过的传感器是否存在
     // 不存在就删掉，不能直接erase？
@@ -411,7 +411,7 @@ void ProbabilisticFusion::RemoveLostTrack() {
 
   // only need to remove frame track
   size_t background_track_count = 0;
-  std::vector<TrackPtr>& background_tracks = scenes_->GetBackgroundTracks();
+  std::vector<TrackPtr>& background_tracks = scenes_->GetBackgroundTracks();// 得到scenes的背景航迹
   for (size_t i = 0; i < background_tracks.size(); ++i) {
     if (background_tracks[i]->IsAlive()) {
       if (i != background_track_count) {

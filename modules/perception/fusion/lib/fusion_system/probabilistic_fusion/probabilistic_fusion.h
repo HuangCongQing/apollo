@@ -92,7 +92,7 @@ class ProbabilisticFusion : public BaseFusionSystem {
   bool started_ = false;
 
   ScenePtr scenes_ = nullptr;
-  std::vector<std::shared_ptr<BaseTracker>> trackers_;  // for foreground
+  std::vector<std::shared_ptr<BaseTracker>> trackers_;  // for foreground 只针对前景
 
   std::unique_ptr<BaseDataAssociation> matcher_;
   std::unique_ptr<BaseGatekeeper> gate_keeper_;

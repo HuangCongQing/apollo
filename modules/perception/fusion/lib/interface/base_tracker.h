@@ -28,7 +28,7 @@ namespace fusion {
 struct TrackerOptions {
   double match_distance = 0.0;
 };
-
+// 更新update track state with measurement(for foreground 只针对前景)
 class BaseTracker {
  public:
   BaseTracker() {}
