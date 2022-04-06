@@ -207,7 +207,7 @@ bool ProbabilisticFusion::IsPublishSensor(
 // 6.1.4 CreateNewTracks
 // 6.2 FusebackgroundTrack函数
 // 6.3 RemoveLostTrack函数
-void ProbabilisticFusion::FuseFrame(const SensorFramePtr& frame) { // frame已经分好前景和后景
+void ProbabilisticFusion::FuseFrame(const SensorFramePtr& frame) { // frame已经分好前景和后景(里面有单个sensor的障碍物)
   AINFO << "Fusing frame: " << frame->GetSensorId()
         << ", 前景foreground_object_number: "
         << frame->GetForegroundObjects().size()

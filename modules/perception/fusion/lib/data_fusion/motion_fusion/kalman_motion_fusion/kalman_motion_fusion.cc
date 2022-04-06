@@ -122,19 +122,21 @@ void KalmanMotionFusion::GetStates(Eigen::Vector3d* anchor_point,
   *velocity = fused_velocity_;
 }
 
+// 更新未匹配的航迹
 void KalmanMotionFusion::UpdateWithoutMeasurement(const std::string& sensor_id,
                                                   double measurement_timestamp,
                                                   double target_timestamp) {
   SensorObjectConstPtr lidar_ptr = track_ref_->GetLatestLidarObject();
   SensorObjectConstPtr radar_ptr = track_ref_->GetLatestRadarObject();
   SensorObjectConstPtr camera_ptr = track_ref_->GetLatestCameraObject();
+  // 判断是否存活
   bool is_alive =
       (lidar_ptr != nullptr || radar_ptr != nullptr || camera_ptr != nullptr);
   if (filter_init_ && is_alive) {
     double time_diff =
         measurement_timestamp - track_ref_->GetFusedObject()->GetTimestamp();
-    MotionFusionWithoutMeasurement(time_diff);
-    fused_anchor_point_(0) = kalman_filter_.GetStates()(0);
+    MotionFusionWithoutMeasurement(time_diff); //预测kalman_filter_.Predict=============================
+    fused_anchor_point_(0) = kalman_filter_.GetStates()(0);//  更新使用的是通过卡尔曼滤波得到预测得到的结果
     fused_anchor_point_(1) = kalman_filter_.GetStates()(1);
     fused_velocity_(0) = kalman_filter_.GetStates()(2);
     fused_velocity_(1) = kalman_filter_.GetStates()(3);
@@ -246,7 +248,7 @@ void KalmanMotionFusion::MotionFusionWithoutMeasurement(
   transform_matrix(0, 2) = time_diff;
   transform_matrix(1, 3) = time_diff;
   env_uncertainty.setZero(6, 6);
-  kalman_filter_.Predict(transform_matrix, env_uncertainty);
+  kalman_filter_.Predict(transform_matrix, env_uncertainty); // 预测结果
 }
 
 // tracker的运动物理量做卡尔曼滤波处理具体实现===============================
