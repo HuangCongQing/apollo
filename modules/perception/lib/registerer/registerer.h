@@ -27,6 +27,7 @@ namespace perception {
 namespace lib {
 
 // idea from boost any but make it more simple and don't use type_info.
+// 从 boost 库借鉴而来的 Any 类实现，可表示任意的抽象产品
 class Any {
  public:
   Any() : content_(NULL) {}
@@ -66,6 +67,7 @@ class Any {
   PlaceHolder *content_;
 };
 
+// 可用于生产任意抽象产品的抽象工厂类
 class ObjectFactory {
  public:
   ObjectFactory() {}
@@ -81,6 +83,7 @@ typedef std::map<std::string, ObjectFactory *> FactoryMap;
 typedef std::map<std::string, FactoryMap> BaseClassMap;
 BaseClassMap &GlobalFactoryMap();
 
+// 结合 BaseClassMap 和 FactoryMap 获取指定基类对应的所有派生类
 bool GetRegisteredClasses(
     const std::string &base_class_name,
     std::vector<std::string> *registered_derived_classes_names);
@@ -89,6 +92,9 @@ bool GetRegisteredClasses(
 }  // namespace perception
 }  // namespace apollo
 
+// 客户端代码
+// 为指定的抽象产品类生成一个注册器类，包含用于生产产品实例的静态方法
+// 宏定义中，## 用于连接两个记号，# 用于将宏参数转换为字符串
 #define PERCEPTION_REGISTER_REGISTERER(base_class)                    \
   class base_class##Registerer {                                      \
     typedef ::apollo::perception::lib::Any Any;                       \
@@ -140,6 +146,9 @@ bool GetRegisteredClasses(
     }                                                                 \
   };
 
+// 具体工厂类
+// 在 Perception 功能模块 .so 动态库文件加载期间，被 __attribute__((constructor))
+// 修饰的函数会优先执行，创建具体产品类对应的具体工厂指针，并将其映射到相应的 FactoryMap 中
 #define PERCEPTION_REGISTER_CLASS(clazz, name)                                \
   namespace {                                                                 \
   class ObjectFactory##name : public apollo::perception::lib::ObjectFactory { \

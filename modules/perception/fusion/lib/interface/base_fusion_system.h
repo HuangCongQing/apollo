@@ -57,6 +57,9 @@ class BaseFusionSystem {
   std::string main_sensor_;
 };
 
+
+// 同时可以发现，BaseMultiSensorFusion 类定义的外面调用了一个宏定义 PERCEPTION_REGISTER_REGISTERER，并定义了一个新的宏定义 PERCEPTION_REGISTER_MULTISENSORFUSION 来间接调用另一个宏定义 PERCEPTION_REGISTER_CLASS。
+// PERCEPTION_REGISTER_REGISTERER 用于生成工厂方法的客户端代码，PERCEPTION_REGISTER_CLASS 用于生成工厂方法的具体工厂类，它们都定义在 apollo/modules/perception/lib/registerer/registerer.h
 PERCEPTION_REGISTER_REGISTERER(BaseFusionSystem);
 #define FUSION_REGISTER_FUSIONSYSTEM(name) \
   PERCEPTION_REGISTER_CLASS(BaseFusionSystem, name)

@@ -78,6 +78,10 @@ bool FusionComponent::Proc(const std::shared_ptr<SensorFrameMessage>& message) {
   return status;
 }
 
+// InitAlgorithmPlugin 方法主要做了三件事：
+// ● 通过工厂方法模式获取 ObstacleMultiSensorFusion 类的实例指针
+// ● 多态调用 ObstacleMultiSensorFusion::Init 方法，执行主要的初始化动作
+// ● 获取 HD Map 的唯一实例，并执行初始化
 bool FusionComponent::InitAlgorithmPlugin() {
   fusion_.reset(new fusion::ObstacleMultiSensorFusion()); // 更新 fusion_ 的指针值为 ObstacleMultiSensorFusion 类实例指针
   fusion::ObstacleMultiSensorFusionParam param;  // 障碍物多传感器融合参数
